@@ -14,10 +14,7 @@ namespace chillerlan\Threema;
 
 use chillerlan\Threema\Crypto\CryptoInterface;
 use chillerlan\TinyCurl\{
-	Request,
-	RequestOptions,
-	Response\Response,
-	URL
+	Request, RequestOptions, Response\ResponseInterface, URL
 };
 
 /**
@@ -60,11 +57,11 @@ class GatewayEndpoint implements GatewayInterface{
 	 * @param array  $params
 	 * @param array  $body
 	 *
-	 * @return \chillerlan\TinyCurl\Response\Response
+	 * @return \chillerlan\TinyCurl\Response\ResponseInterface
 	 * @throws \chillerlan\Threema\GatewayException
 	 * @throws \chillerlan\TinyCurl\RequestException
 	 */
-	protected function getResponse(string $endpoint, array $params = [], array $body = []):Response{
+	protected function getResponse(string $endpoint, array $params = [], array $body = []):ResponseInterface{
 		$endpoint = self::API_BASE.$endpoint;
 		$params   = array_merge($params, [
 			'from'   => getenv('THREEMA_GATEWAY_ID'),

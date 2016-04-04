@@ -27,15 +27,15 @@ class CLIRunnerNetworkTest extends NetworkTestAbstract{
 	}
 
 	public function testGetIdByEmail(){
-		$this->assertEquals($this->testdata->id, trim($this->CLIrunner->run(['file.php', 'idbyemail', $this->testdata->email])));
+		$this->assertEquals($this->testdata->id, trim($this->CLIrunner->run(['file.php', 'email2id', $this->testdata->email])));
 	}
 
 	public function testGetIdByPhone(){
-		$this->assertEquals($this->testdata->id, trim($this->CLIrunner->run(['file.php', 'idbyphone', $this->testdata->phone])));
+		$this->assertEquals($this->testdata->id, trim($this->CLIrunner->run(['file.php', 'phone2id', $this->testdata->phone])));
 	}
 
 	public function testGetPubkeyById(){
-		$this->assertEquals($this->testdata->publicKey, trim($this->CLIrunner->run(['file.php', 'pubkeybyid', $this->testdata->id])));
+		$this->assertEquals($this->testdata->publicKey, trim($this->CLIrunner->run(['file.php', 'id2pubkey', $this->testdata->id])));
 	}
 
 }

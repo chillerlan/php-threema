@@ -23,12 +23,12 @@ class CLIRunnerTest extends GatewayTestAbstract{
 	}
 
 	public function testCLICatchException(){
-		$this->assertEquals('ERROR: invalid threema id', trim($this->CLIrunner->run(['file.php', 'check','#foobar'])));
+		$this->assertEquals('ERROR: invalid threema id', trim($this->CLIrunner->run(['file.php', 'check', '#foobar'])));
 	}
 
 	public function testHelp(){
 		$expected = 'Threema Gateway CLI tool.'.PHP_EOL.'Crypto:';
-		$this->assertContains($expected, $this->CLIrunner->run(['file.php', 'help']));
+		$this->assertContains($expected, $this->CLIrunner->run(['file.php']));
 		$this->assertContains($expected, $this->CLIrunner->help());
 	}
 
@@ -38,6 +38,15 @@ class CLIRunnerTest extends GatewayTestAbstract{
 		$this->assertContains('public:', $this->CLIrunner->run(['file.php', 'keypair']));
 		$this->assertContains('private:', $this->CLIrunner->getKeypair());
 		$this->assertContains('public:', $this->CLIrunner->getKeypair());
+
+		$private = $this->gatewayOptions->storagePath.'/test-privatekey.txt';
+		$public  = $this->gatewayOptions->storagePath.'/test-publickey.txt';
+
+		$this->CLIrunner->run(['file.php', 'keypair', $private, $public]);
+		$patternHex = '/^[a-f\d]{64}$/i';
+
+		$this->assertRegExp($patternHex, file_get_contents($private));
+		$this->assertRegExp($patternHex, file_get_contents($public));
 	}
 
 	public function testHashEmail(){

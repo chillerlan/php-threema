@@ -39,6 +39,7 @@ abstract class GatewayTestAbstract extends \PHPUnit_Framework_TestCase{
 
 	protected function setUp(){
 		$this->gatewayOptions = new GatewayOptions;
+		$this->gatewayOptions->gatewayInterface = TestGatewayEndpoint::class;
 		$this->gatewayOptions->configFilename = '.threema'; // @todo TRAVIS REMINDER!
 		$this->gatewayOptions->configPath     = __DIR__.'/../config';
 		$this->gatewayOptions->storagePath    = __DIR__.'/../storage';

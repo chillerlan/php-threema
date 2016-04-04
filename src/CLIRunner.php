@@ -15,6 +15,7 @@ namespace chillerlan\Threema;
 use chillerlan\Threema\Crypto\CryptoInterface;
 use ReflectionClass;
 use ReflectionMethod;
+use stdClass;
 
 /**
  *
@@ -26,23 +27,23 @@ class CLIRunner implements CLIRunnerInterface{
 	 */
 	const COMMANDS = [
 		// local
-		'keypair'      => 'getKeypair',
-		'hash_email'   => 'hashEmail',
-		'hash_phone'   => 'hashPhone',
+		'keypair'    => 'getKeypair',
+		'hash_email' => 'hashEmail',
+		'hash_phone' => 'hashPhone',
 #		'encrypt'      => '',
 #		'decrypt'      => '',
 		// network
-		'credits'      => 'checkCredits',
-		'check'        => 'checkCapabilities',
-		'idbyemail'    => 'getIdByEmail',
-		'idbyphone'    => 'getIdByPhone',
-		'pubkeybyid'   => 'getPubkeyById',
+		'credits'    => 'checkCredits',
+		'check'      => 'checkCapabilities',
+		'email2id'   => 'getIdByEmail',
+		'phone2id'   => 'getIdByPhone',
+		'id2pubkey'  => 'getPubkeyById',
 #		'send'         => '',
 #		'sende2e'      => '',
 #		'sendimage'    => '',
 #		'sendfile'     => '',
 #		'receive'      => '',
-	];
+		];
 
 	/**
 	 * @var \chillerlan\Threema\Crypto\CryptoInterface
@@ -67,7 +68,7 @@ class CLIRunner implements CLIRunnerInterface{
 	/**
 	 * @var array[\ReflectionMethod]
 	 */
-	private   $CLIRunnerInterfaceMap;
+	private $CLIRunnerInterfaceMap;
 
 	/**
 	 * CLIRunner constructor.
@@ -81,13 +82,15 @@ class CLIRunner implements CLIRunnerInterface{
 		$this->threemaGateway  = new Gateway($this->cryptoInterface, $gatewayOptions);
 		$this->reflection      = new ReflectionClass(CLIRunnerInterface::class);
 
-		foreach($this->reflection ->getMethods() as $method){
+		foreach($this->reflection->getMethods() as $method){
 			$this->CLIRunnerInterfaceMap[$method->name] = $method;
 		}
 	}
 
 	/**
-	 * @inheritdoc
+	 * @param array $arguments $_SERVER['argc']
+	 *
+	 * @return string
 	 */
 	public function run(array $arguments):string{
 		/** @noinspection PhpUnusedLocalVariableInspection */
@@ -142,11 +145,49 @@ class CLIRunner implements CLIRunnerInterface{
 	}
 
 	/**
-	 * @inheritdoc
+	 * @param array $params
+	 *
+	 * @return \stdClass
+	 */
+	protected function parseDocBlock(array $params):stdClass{
+		$parsed             = new stdClass;
+		$parsed->paramNames = [];
+		$parsed->paramDoc   = [];
+		$parsed->returnDoc  = '';
+
+		if(empty($params)){
+			return $parsed; // @codeCoverageIgnore
+		}
+
+		foreach($params as $p){
+			$p = explode(' ', $p, 2);
+			if(isset($p[1])){
+				if($p[0] === 'param'){
+					$p                    = (explode(' ', trim($p[1]), 3));
+					$name                 = '<'.trim($p[1], ' $').'>';
+					$parsed->paramNames[] = $name;
+					$doc                  = isset($p[2]) ? $name.' '.trim($p[2]) : $name;
+					$parsed->paramDoc[]   = $doc;
+				}
+				else if($p[0] === 'return'){
+					$p = explode(' ', trim($p[1]), 2);
+					$parsed->returnDoc .= isset($p[1]) ? trim($p[1]) : '';
+				}
+			}
+		}
+
+		$parsed->paramNames = implode(' ', $parsed->paramNames);
+		$parsed->paramDoc   = implode(PHP_EOL, $parsed->paramDoc);
+
+		return $parsed;
+	}
+
+	/**
+	 * @return string
 	 */
 	public function help():string{
 		// return info in case no command was found
-		$help  = 'Threema Gateway CLI tool.'.PHP_EOL;
+		$help = 'Threema Gateway CLI tool.'.PHP_EOL;
 		$help .= 'Crypto: '.$this->threemaGateway->cryptoVersion().PHP_EOL.PHP_EOL;
 
 		foreach(self::COMMANDS as $command => $method){
@@ -155,35 +196,13 @@ class CLIRunner implements CLIRunnerInterface{
 
 			$params  = explode('@', $comment);
 			$comment = trim(array_shift($params));
+			$parsed  = $this->parseDocBlock($params);
 
-			$paramNames = [];
-			$paramDoc = [];
-			$returnDoc = '';
-			if(count($params) > 0){
-				foreach($params as $p){
-					$p = explode(' ', $p, 2);
-					if(isset($p[1])){
-						if($p[0] === 'param'){
-							$p = (explode(' ', trim($p[1]), 3));
-							$name =  '<'.trim($p[1], ' $').'>';
-							$paramNames[] = $name;
-							$doc = isset($p[2]) ? $name.' '.trim($p[2]) : $name;
-							$paramDoc[] = $doc;
-						}
-						else if($p[0] === 'return'){
-							$p = explode(' ', trim($p[1]), 2);
-							$returnDoc .= isset($p[1]) ? trim($p[1]) : '';
-						}
-					}
-
-				}
-			}
-
-			$help .= PHP_EOL.'threema.php '.$command.' '.implode(' ', $paramNames).PHP_EOL;
-			$help .= str_repeat('-', strlen($command)+12).PHP_EOL;
+			$help .= PHP_EOL.'threema.php '.$command.' '.$parsed->paramNames.PHP_EOL;
+			$help .= str_repeat('-', strlen($command) + 12).PHP_EOL;
 			$help .= PHP_EOL.$comment.PHP_EOL;
-			$help .= PHP_EOL.implode(PHP_EOL, $paramDoc).PHP_EOL;
-			$help .= PHP_EOL.'Returns: '.$returnDoc.PHP_EOL.PHP_EOL;
+			$help .= PHP_EOL.$parsed->paramDoc.PHP_EOL;
+			$help .= PHP_EOL.'Returns: '.$parsed->returnDoc.PHP_EOL.PHP_EOL;
 		}
 
 		return $help;
@@ -196,12 +215,13 @@ class CLIRunner implements CLIRunnerInterface{
 		$keypair = $this->cryptoInterface->getKeypair();
 		$message = '';
 
-		if(is_dir(dirname($privateKeyFile))){
+		// @todo: check writable
+		if(!empty($privateKeyFile) && is_dir(dirname($privateKeyFile))){
 			file_put_contents($privateKeyFile, $keypair->privateKey);
 			$message .= 'Private key saved to: '.$privateKeyFile.PHP_EOL;
 		}
 
-		if(is_dir(dirname($publicKeyFile))){
+		if(!empty($publicKeyFile) && is_dir(dirname($publicKeyFile))){
 			file_put_contents($publicKeyFile, $keypair->publicKey);
 			$message .= 'Public key saved to: '.$publicKeyFile.PHP_EOL;
 		}
