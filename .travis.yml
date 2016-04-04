@@ -1,0 +1,28 @@
+language: php
+
+php:
+  - 7.0
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install make build-essential automake php5-dev php-pear
+  - git clone git://github.com/jedisct1/libsodium.git
+  - cd libsodium
+  - git checkout 1.0.8
+  - ./autogen.sh
+  - ./configure && make check
+  - sudo make install
+  - cd ..
+  - pecl install libsodium
+
+install:
+  - travis_retry composer install --no-interaction --prefer-source
+
+script:
+  - vendor/bin/phpunit --configuration phpunit.xml --coverage-clover clover.xml
+
+before_script:
+  - phpenv config-add travis-php.ini
+
+after_script:
+  - bash <(curl -s https://codecov.io/bash)

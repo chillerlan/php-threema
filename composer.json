@@ -1,0 +1,38 @@
+{
+	"name": "chillerlan/php-threema",
+	"type": "library",
+	"description": "Threema Gateway API. PHP 7.",
+	"keywords": ["threema", "gateway", "libsodium", "API"],
+	"homepage": "https://github.com/codemasher/php-threema",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "smiley",
+			"email": "smiley@chillerlan.net",
+			"homepage": "http://smiley.codes"
+		}
+	],
+	"require": {
+		"php": ">=7.0.3",
+		"ext-libsodium": ">=1.0.2",
+		"chillerlan/php-curl": "dev-master",
+		"vlucas/phpdotenv": "2.2.*"
+	},
+	"require-dev": {
+		"chillerlan/php-qrcode": "dev-master",
+		"phpunit/phpunit": "5.2.*",
+		"phpdocumentor/phpdocumentor": "2.8.*"
+	},
+	"autoload": {
+		"psr-4": {
+			"chillerlan\\ThreemaCLI\\": "cli/",
+			"chillerlan\\Threema\\": "src/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"chillerlan\\ThreemaTest\\": "tests/",
+			"Example\\": "examples/"
+		}
+	}
+}
