@@ -41,7 +41,7 @@ class GatewayNetworkTest extends NetworkTestAbstract{
 	}
 
 	public function testGetPublicKey(){
-		$this->assertEquals('4a6a1b34dcef15d43cb74de2fd36091be99fbbaf126d099d47d83d919712c72b', $this->threemaGateway->getPublicKey('ECHOECHO'));
+		$this->assertEquals($this->testdata->publicKey, $this->threemaGateway->getPublicKey($this->testdata->id));
 	}
 
 }

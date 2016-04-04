@@ -26,4 +26,16 @@ class CLIRunnerNetworkTest extends NetworkTestAbstract{
 		$this->assertEquals('image,text,video', $this->CLIrunner->checkCapabilities('ECHOECHO'));
 	}
 
+	public function testGetIdByEmail(){
+		$this->assertEquals($this->testdata->id, trim($this->CLIrunner->run(['file.php', 'idbyemail', $this->testdata->email])));
+	}
+
+	public function testGetIdByPhone(){
+		$this->assertEquals($this->testdata->id, trim($this->CLIrunner->run(['file.php', 'idbyphone', $this->testdata->phone])));
+	}
+
+	public function testGetPubkeyById(){
+		$this->assertEquals($this->testdata->publicKey, trim($this->CLIrunner->run(['file.php', 'pubkeybyid', $this->testdata->id])));
+	}
+
 }

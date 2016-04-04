@@ -20,10 +20,9 @@ interface CLIRunnerInterface{
 	/**
 	 * Generates a new key pair and optionally writes the keys to the respective files (in hex).
 	 *
-	 * @param string $privateKeyFile private key file path
-	 * @param string $publicKeyFile  public key file path
-	 *
-	 * @return string a string containing public and private key separated by PHP_EOL, or a message in case of file output.
+	 * @param  string $privateKeyFile  private key file path
+	 * @param  string $publicKeyFile   public key file path
+	 * @return string                  a string containing public and private key separated by PHP_EOL, or a message in case of file output.
 	 */
 	public function getKeypair(string $privateKeyFile = null, string $publicKeyFile = null):string;
 
@@ -31,7 +30,6 @@ interface CLIRunnerInterface{
 	 * Hash an email address for identity lookup.
 	 *
 	 * @param string $email  a valid email address to hash
-	 *
 	 * @return string        the hashed email address in hex digits
 	 */
 	public function hashEmail(string $email):string;
@@ -40,24 +38,46 @@ interface CLIRunnerInterface{
 	 * Hash a phone number for identity lookup.
 	 *
 	 * @param string $phoneNo  a phone number to lookup (E.164 format)
-	 *
 	 * @return string          the hashed phone number in hex digits
 	 */
 	public function hashPhone(string $phoneNo):string;
 
 	/**
 	 * Checks the remaining credits.
-	 * 
+	 *
 	 * @return string       remaining credits
 	 */
 	public function checkCredits():string;
 
 	/**
 	 * Fetch the capabilities of a Threema ID
-	 * 
-	 * @param string $threemaID a valid Threema ID
 	 *
-	 * @return string capabilities: audio,file,image,video,text
-	 */	
+	 * @param string $threemaID  a valid Threema ID
+	 * @return string            capabilities: audio,file,image,video,text
+	 */
 	public function checkCapabilities(string $threemaID):string;
+
+	/**
+	 * Lookup the ID linked to the given email address (will be hashed locally).
+	 *
+	 * @param string $email  a valid email address to hash
+	 * @return string        the Threema ID linked to the given email
+	 */
+	public function getIdByEmail(string $email):string;
+
+	/**
+	 * Lookup the ID linked to the given phone number (will be hashed locally).
+	 *
+	 * @param string $phoneNo  a phone number to lookup (E.164 format)
+	 * @return string          the Threema ID linked to the given phone number
+	 */
+	public function getIdByPhone(string $phoneNo):string;
+
+	/**
+	 * Lookup the public key for the given ID.
+	 *
+	 * @param string $threemaID  a valid Threema ID
+	 * @return string            the public key linked to the given Threema ID
+	 */
+	public function getPubkeyById(string $threemaID):string;
 }

@@ -17,7 +17,7 @@ use ReflectionClass;
 use ReflectionMethod;
 
 /**
- * 
+ *
  */
 class CLIRunner implements CLIRunnerInterface{
 
@@ -34,9 +34,9 @@ class CLIRunner implements CLIRunnerInterface{
 		// network
 		'credits'      => 'checkCredits',
 		'check'        => 'checkCapabilities',
-#		'idbyemail'    => '',
-#		'idbyphone'    => '',
-#		'keybyid'      => '',
+		'idbyemail'    => 'getIdByEmail',
+		'idbyphone'    => 'getIdByPhone',
+		'pubkeybyid'   => 'getPubkeyById',
 #		'send'         => '',
 #		'sende2e'      => '',
 #		'sendimage'    => '',
@@ -99,6 +99,7 @@ class CLIRunner implements CLIRunnerInterface{
 				$method = $this->CLIRunnerInterfaceMap[self::COMMANDS[$command]];
 				$method = new ReflectionMethod($this, $method->name);
 
+				// @todo: check method arguments
 				return $this->log2cli($method->invokeArgs($this, $arguments));
 			}
 			catch(GatewayException $gatewayException){
@@ -164,15 +165,13 @@ class CLIRunner implements CLIRunnerInterface{
 					if(isset($p[1])){
 						if($p[0] === 'param'){
 							$p = (explode(' ', trim($p[1]), 3));
-							$paramNames[] = '<'.trim($p[1], ' $').'>';
-							$d =  trim($p[1]);
-#							$d .= ' ('.trim($p[0]).'): ';
-							$d .= isset($p[2]) ? ': '.trim($p[2]) : '';
-							$paramDoc[] = $d;
+							$name =  '<'.trim($p[1], ' $').'>';
+							$paramNames[] = $name;
+							$doc = isset($p[2]) ? $name.' '.trim($p[2]) : $name;
+							$paramDoc[] = $doc;
 						}
 						else if($p[0] === 'return'){
 							$p = explode(' ', trim($p[1]), 2);
-#							$returnDoc  = '('.trim($p[0]).') ';
 							$returnDoc .= isset($p[1]) ? trim($p[1]) : '';
 						}
 					}
@@ -184,7 +183,7 @@ class CLIRunner implements CLIRunnerInterface{
 			$help .= str_repeat('-', strlen($command)+12).PHP_EOL;
 			$help .= PHP_EOL.$comment.PHP_EOL;
 			$help .= PHP_EOL.implode(PHP_EOL, $paramDoc).PHP_EOL;
-			$help .= PHP_EOL.'Returns: '.$returnDoc.PHP_EOL;
+			$help .= PHP_EOL.'Returns: '.$returnDoc.PHP_EOL.PHP_EOL;
 		}
 
 		return $help;
@@ -192,12 +191,22 @@ class CLIRunner implements CLIRunnerInterface{
 
 	/**
 	 * @inheritdoc
-	 * @todo file output
 	 */
 	public function getKeypair(string $privateKeyFile = null, string $publicKeyFile = null):string{
 		$keypair = $this->cryptoInterface->getKeypair();
+		$message = '';
 
-		return 'private:'.$keypair->privateKey.PHP_EOL.'public:'.$keypair->publicKey;
+		if(is_dir(dirname($privateKeyFile))){
+			file_put_contents($privateKeyFile, $keypair->privateKey);
+			$message .= 'Private key saved to: '.$privateKeyFile.PHP_EOL;
+		}
+
+		if(is_dir(dirname($publicKeyFile))){
+			file_put_contents($publicKeyFile, $keypair->publicKey);
+			$message .= 'Public key saved to: '.$publicKeyFile.PHP_EOL;
+		}
+
+		return $message.PHP_EOL.'private:'.$keypair->privateKey.PHP_EOL.'public:'.$keypair->publicKey;
 	}
 
 	/**
@@ -227,4 +236,26 @@ class CLIRunner implements CLIRunnerInterface{
 	public function checkCapabilities(string $threemaID):string{
 		return implode(',', $this->threemaGateway->checkCapabilities($threemaID));
 	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function getIdByEmail(string $email):string{
+		return $this->threemaGateway->getIdByEmailHash($this->hashEmail($email));
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function getIdByPhone(string $phoneNo):string{
+		return $this->threemaGateway->getIdByPhoneHash($this->hashPhone($phoneNo));
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function getPubkeyById(string $threemaID):string{
+		return $this->threemaGateway->getPublicKey($threemaID);
+	}
+
 }
