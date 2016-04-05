@@ -12,17 +12,12 @@
 namespace chillerlan\ThreemaTest;
 
 use chillerlan\Threema\CLIRunner;
+use chillerlan\ThreemaTest\Crypto\CryptoTestAbstract;
 
 /**
  * Class CLIRunnerTest
  */
 class CLIRunnerTest extends GatewayTestAbstract{
-
-	const SENDER_PRIVATE    = 'c9e46cbbdf2394b0f402b5293c3b7a19948dca215a00600ed448e826b00c9f29';
-	const SENDER_PUBLIC     = 'ec17dd2053eff97fefbaf3ecf905958e49e06341b44ac9252ae95e9a476eb773';
-	const RECIPIENT_PRIVATE = 'aeca6f04c5a36fd02797fb52376d31aec0e9ad02b6aef00e205e0ddc50d4f652';
-	const RECIPIENT_PUBLIC  = '4a491d10fa4e8f3c543ae0abd34f90f57b71f0508e6c8558948fae8f47ef430c';
-	const MESSAGE           = 'This is a random test message! ÄÖÜ 茗荷';
 
 	public function testInstance(){
 		$this->assertInstanceOf(CLIRunner::class, $this->CLIrunner);
@@ -70,15 +65,19 @@ class CLIRunnerTest extends GatewayTestAbstract{
 	public function testEncrypt(){
 		$plaintext = $this->gatewayOptions->storagePath.'/test-plaintext.txt';
 		$encrypted = $this->gatewayOptions->storagePath.'/test-encrypted.txt';
-		file_put_contents($plaintext, self::MESSAGE);
-		$this->assertContains(' bytes written to: '.$encrypted.PHP_EOL, $this->CLIrunner->encryptFile(self::SENDER_PRIVATE, self::RECIPIENT_PUBLIC, $plaintext, $encrypted));
+		file_put_contents($plaintext, CryptoTestAbstract::MESSAGE);
+
+		$message = $this->CLIrunner->encryptFile(CryptoTestAbstract::SENDER_PRIVATE, CryptoTestAbstract::RECIPIENT_PUBLIC, $plaintext, $encrypted);
+		$this->assertContains(' bytes written to: '.$encrypted.PHP_EOL, $message);
 	}
 
 	public function testDecrypt(){
 		$encrypted = $this->gatewayOptions->storagePath.'/test-encrypted.txt';
 		$decrypted = $this->gatewayOptions->storagePath.'/test-decrypted.txt';
-		$this->assertEquals('44 bytes written to: '.$decrypted.PHP_EOL, $this->CLIrunner->decryptFile(self::RECIPIENT_PRIVATE, self::SENDER_PUBLIC, $encrypted, $decrypted));
-		$this->assertEquals(self::MESSAGE, file_get_contents($decrypted));
+
+		$message = $this->CLIrunner->decryptFile(CryptoTestAbstract::RECIPIENT_PRIVATE, CryptoTestAbstract::SENDER_PUBLIC, $encrypted, $decrypted);
+		$this->assertEquals('44 bytes written to: '.$decrypted.PHP_EOL, $message);
+		$this->assertEquals(CryptoTestAbstract::MESSAGE, file_get_contents($decrypted));
 	}
 
 }
