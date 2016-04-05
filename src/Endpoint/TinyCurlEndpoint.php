@@ -40,8 +40,6 @@ class TinyCurlEndpoint implements EndpointInterface{
 	 *
 	 * @param \chillerlan\Threema\GatewayOptions $gatewayOptions
 	 * @param \chillerlan\TinyCurl\Request       $request
-	 *
-	 * @codeCoverageIgnore
 	 */
 	public function __construct(GatewayOptions $gatewayOptions, Request $request){
 		$this->gatewayOptions = $gatewayOptions;
