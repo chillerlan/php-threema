@@ -84,7 +84,7 @@ class GatewayEndpoint implements GatewayInterface{
 			throw new GatewayException('gateway error: '.self::API_ERRORS[$response->info->http_code]);
 		}
 
-		throw new GatewayException('unknown error: "compiles on my machine."'); // @codeCoverageIgnore
+		throw new GatewayException('unknown error: "compiles on my machine."');
 		// @codeCoverageIgnoreEnd
 	}
 
