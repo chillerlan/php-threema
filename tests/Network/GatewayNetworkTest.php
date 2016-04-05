@@ -17,31 +17,31 @@ namespace chillerlan\ThreemaTest\Network;
 class GatewayNetworkTest extends NetworkTestAbstract{
 
 	public function testCheckCredits(){
-		$this->assertEquals($this->testdata->credits, $this->threemaGateway->checkCredits());
+		$this->assertEquals($this->testdata->credits, $this->gateway->checkCredits());
 	}
 
 	public function testCheckCapabilities(){
-		$this->assertEquals(['image','text','video'], $this->threemaGateway->checkCapabilities('ECHOECHO'));
+		$this->assertEquals(['image','text','video'], $this->gateway->checkCapabilities('ECHOECHO'));
 	}
 
 	public function testGetIdByPhone(){
-		$this->assertEquals($this->testdata->id, $this->threemaGateway->getIdByPhone($this->testdata->phone));
+		$this->assertEquals($this->testdata->id, $this->gateway->getIdByPhone($this->testdata->phone));
 	}
 
 	public function testGetIdByPhoneHash(){
-		$this->assertEquals($this->testdata->id, $this->threemaGateway->getIdByPhoneHash($this->testdata->phoneHash));
+		$this->assertEquals($this->testdata->id, $this->gateway->getIdByPhoneHash($this->testdata->phoneHash));
 	}
 
 	public function testGetIdByEmail(){
-		$this->assertEquals($this->testdata->id, $this->threemaGateway->getIdByEmail($this->testdata->email));
+		$this->assertEquals($this->testdata->id, $this->gateway->getIdByEmail($this->testdata->email));
 	}
 
 	public function testGetIdByEmailHash(){
-		$this->assertEquals($this->testdata->id, $this->threemaGateway->getIdByEmailHash($this->testdata->emailHash));
+		$this->assertEquals($this->testdata->id, $this->gateway->getIdByEmailHash($this->testdata->emailHash));
 	}
 
 	public function testGetPublicKey(){
-		$this->assertEquals($this->testdata->publicKey, $this->threemaGateway->getPublicKey($this->testdata->id));
+		$this->assertEquals($this->testdata->publicKey, $this->gateway->getPublicKey($this->testdata->id));
 	}
 
 }

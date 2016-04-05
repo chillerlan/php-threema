@@ -11,9 +11,12 @@ namespace chillerlan\ThreemaCLI;
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-use chillerlan\Threema\CLIRunner;
-use chillerlan\Threema\Crypto\CryptoSodium;
-use chillerlan\Threema\GatewayOptions;
+use chillerlan\Threema\{
+	CLIRunner, Crypto\CryptoSodium, Endpoint\TinyCurlEndpoint, GatewayOptions
+};
+use chillerlan\TinyCurl\{
+	Request, RequestOptions
+};
 
 if(!is_cli()){
 	exit('please run the Threema Gateway CLI tool in CLI mode only.');
@@ -23,9 +26,13 @@ $gatewayOptions                 = new GatewayOptions;
 $gatewayOptions->configFilename = '.threema'; // @todo TRAVIS REMINDER!
 $gatewayOptions->configPath     = __DIR__.'/../config';
 $gatewayOptions->storagePath    = __DIR__.'/../storage';
-$gatewayOptions->cacert         = __DIR__.'/../storage/cacert.pem';
 
-echo (new CLIRunner(new CryptoSodium, $gatewayOptions))->run($_SERVER['argv']);
+$requestOptions          = new RequestOptions;
+$requestOptions->ca_info = __DIR__.'/../storage/cacert.pem'; // https://curl.haxx.se/ca/cacert.pem
+
+$CLIRunner = new CLIRunner(new TinyCurlEndpoint($gatewayOptions, new Request($requestOptions)), new CryptoSodium);
+
+echo $CLIRunner->run($_SERVER['argv']);
 
 exit;
 

@@ -12,15 +12,16 @@
 namespace chillerlan\ThreemaTest;
 
 use chillerlan\Threema\{
-	CLIRunner, Crypto\CryptoSodium, Gateway, GatewayOptions
+	CLIRunner, Crypto\CryptoSodium, Endpoint\TinyCurlEndpoint, Gateway, GatewayOptions
 };
+use chillerlan\TinyCurl\RequestOptions;
 
 abstract class GatewayTestAbstract extends \PHPUnit_Framework_TestCase{
 
 	/**
 	 * @var \chillerlan\Threema\Gateway
 	 */
-	protected $threemaGateway;
+	protected $gateway;
 
 	/**
 	 * @var \chillerlan\Threema\Crypto\CryptoInterface
@@ -39,15 +40,20 @@ abstract class GatewayTestAbstract extends \PHPUnit_Framework_TestCase{
 
 	protected function setUp(){
 		$this->gatewayOptions = new GatewayOptions;
-		$this->gatewayOptions->gatewayInterface = TestGatewayEndpoint::class;
 		$this->gatewayOptions->configFilename = '.threema'; // @todo TRAVIS REMINDER!
 		$this->gatewayOptions->configPath     = __DIR__.'/../config';
 		$this->gatewayOptions->storagePath    = __DIR__.'/../storage';
-		$this->gatewayOptions->cacert         = __DIR__.'/../storage/cacert.pem';
 
+		$requestOptions          = new RequestOptions;
+		$requestOptions->ca_info = __DIR__.'/../storage/cacert.pem'; // https://curl.haxx.se/ca/cacert.pem
+
+		$http = new TestRequest($requestOptions);
+#		$http = new \chillerlan\TinyCurl\Request($requestOptions);
+
+		$endpoint              = new TinyCurlEndpoint($this->gatewayOptions, $http);
 		$this->cryptoInterface = new CryptoSodium;
-		$this->threemaGateway  = new Gateway($this->cryptoInterface, $this->gatewayOptions);
-		$this->CLIrunner       = new CLIRunner($this->cryptoInterface, $this->gatewayOptions);
+		$this->gateway         = new Gateway($endpoint, $this->cryptoInterface);
+		$this->CLIrunner       = new CLIRunner($endpoint, $this->cryptoInterface);
 	}
 
 }

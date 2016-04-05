@@ -1,16 +1,16 @@
 <?php
 /**
- * Interface GatewayInterface
+ * Interface EndpointInterface
  *
- * @filesource   GatewayInterface.php
+ * @filesource   EndpointInterface.php
  * @created      01.04.2016
- * @package      chillerlan\Threema
+ * @package      chillerlan\Threema\Endpoint
  * @author       Smiley <smiley@chillerlan.net>
  * @copyright    2016 Smiley
  * @license      MIT
  */
 
-namespace chillerlan\Threema;
+namespace chillerlan\Threema\Endpoint;
 
 /**
  * Threema Gateway Interface
@@ -20,9 +20,9 @@ namespace chillerlan\Threema;
  *
  * @see /config/.env
  */
-interface GatewayInterface{
+interface EndpointInterface{
 
-	const API_BASE = 'https://msgapi.threema.ch';
+	const API_BASE   = 'https://msgapi.threema.ch';
 	const API_ERRORS = [
 		400 => 'bad request',
 		401 => 'unauthorized',

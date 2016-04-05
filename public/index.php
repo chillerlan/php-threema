@@ -7,8 +7,6 @@
  * @license      MIT
  */
 
-
-
 header('Content-type: text/html;charset=utf-8;');
 
 ?>
@@ -39,8 +37,8 @@ header('Content-type: text/html;charset=utf-8;');
 			</li>
 		</ul>
 		<input type="hidden" name="form" value="encrypt" />
-		<button type="submit">start</button>
 		<div id="encrypt-result" style="display: none"></div>
+		<button type="submit">start</button>
 	</form>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prototype/1.7.3/prototype.js"></script>
@@ -52,10 +50,10 @@ header('Content-type: text/html;charset=utf-8;');
 
 			var params = event.target.serialize(true);
 			new Ajax.Request('gateway.php', {
-//				method: 'get',
+				method: 'get',
 				parameters: params,
 				onSuccess: function(r){
-					$(params.form + '-result').update(r.responseJSON.result).show();
+					$(params.form + '-result').update(r.responseJSON[params.form]).show();
 					console.log(r.responseJSON);
 				}
 			});

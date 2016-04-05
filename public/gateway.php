@@ -9,28 +9,34 @@
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-use chillerlan\Threema\Crypto\CryptoSodium;
-use chillerlan\Threema\Gateway;
-use chillerlan\Threema\GatewayOptions;
+use chillerlan\Threema\{
+	Crypto\CryptoSodium, Endpoint\TinyCurlEndpoint, Gateway, GatewayOptions
+};
+use chillerlan\TinyCurl\{
+	Request, RequestOptions
+};
 
 $gatewayOptions                 = new GatewayOptions;
 $gatewayOptions->configFilename = '.threema'; // @todo TRAVIS REMINDER!
 $gatewayOptions->configPath     = __DIR__.'/../config';
 $gatewayOptions->storagePath    = __DIR__.'/../storage';
-$gatewayOptions->cacert         = __DIR__.'/../storage/cacert.pem';
 
-$gateway = new Gateway(new CryptoSodium, $gatewayOptions);
+$requestOptions          = new RequestOptions;
+$requestOptions->ca_info = __DIR__.'/../storage/cacert.pem'; // https://curl.haxx.se/ca/cacert.pem
+
+$gateway = new Gateway(new TinyCurlEndpoint($gatewayOptions, new Request($requestOptions)), new CryptoSodium);
 
 $response = [];
 
-if(isset($_POST['form']) && $_POST['form'] === 'encrypt'){
-	$x =  $gateway->encrypt($_POST['message'], $_POST['private'], $_POST['public']);
-	$response['result'] = $x->box.PHP_EOL.$x->nonce;
+$form = $_GET['form'] ?? false;
+
+if($form && in_array($form, ['encrypt'], true)){
+	switch($form){
+		case 'encrypt':
+			$response['encrypt'] = $gateway->encrypt($_GET['message'], $_GET['private'], $_GET['public']);
+			break;
+	}
 }
-
-
-
-
 
 header('Content-type: application/json;charset=utf-8;');
 header('Last-Modified: '.date('r'));

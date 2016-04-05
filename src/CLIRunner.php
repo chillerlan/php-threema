@@ -12,7 +12,9 @@
 
 namespace chillerlan\Threema;
 
-use chillerlan\Threema\Crypto\CryptoInterface;
+use chillerlan\Threema\{
+	Crypto\CryptoInterface, Endpoint\EndpointInterface
+};
 use ReflectionClass;
 use ReflectionMethod;
 use stdClass;
@@ -47,14 +49,9 @@ class CLIRunner implements CLIRunnerInterface{
 	protected $cryptoInterface;
 
 	/**
-	 * @var \chillerlan\Threema\GatewayOptions
-	 */
-	protected $gatewayOptions;
-
-	/**
 	 * @var \chillerlan\Threema\Gateway
 	 */
-	protected $threemaGateway;
+	protected $endpointInterface;
 
 	/**
 	 * @var \ReflectionClass
@@ -69,14 +66,13 @@ class CLIRunner implements CLIRunnerInterface{
 	/**
 	 * CLIRunner constructor.
 	 *
-	 * @param \chillerlan\Threema\Crypto\CryptoInterface $cryptoInterface
-	 * @param \chillerlan\Threema\GatewayOptions         $gatewayOptions
+	 * @param \chillerlan\Threema\Endpoint\EndpointInterface $endpointInterface
+	 * @param \chillerlan\Threema\Crypto\CryptoInterface     $cryptoInterface
 	 */
-	public function __construct(CryptoInterface $cryptoInterface, GatewayOptions $gatewayOptions){
-		$this->cryptoInterface = $cryptoInterface;
-		$this->gatewayOptions  = $gatewayOptions;
-		$this->threemaGateway  = new Gateway($this->cryptoInterface, $gatewayOptions);
-		$this->reflection      = new ReflectionClass(CLIRunnerInterface::class);
+	public function __construct(EndpointInterface $endpointInterface, CryptoInterface $cryptoInterface){
+		$this->endpointInterface = $endpointInterface;
+		$this->cryptoInterface   = $cryptoInterface;
+		$this->reflection        = new ReflectionClass(CLIRunnerInterface::class);
 
 		foreach($this->reflection->getMethods() as $method){
 			$this->CLIRunnerInterfaceMap[$method->name] = $method;
@@ -183,7 +179,7 @@ class CLIRunner implements CLIRunnerInterface{
 	public function help():string{
 		// return info in case no command was found
 		$help = 'Threema Gateway CLI tool.'.PHP_EOL;
-		$help .= 'Crypto: '.$this->threemaGateway->cryptoVersion().PHP_EOL.PHP_EOL;
+		$help .= 'Crypto: '.$this->cryptoInterface->version().PHP_EOL.PHP_EOL;
 
 		foreach(self::COMMANDS as $command => $method){
 			$comment = $this->reflection->getMethod($method)->getDocComment();
@@ -234,49 +230,49 @@ class CLIRunner implements CLIRunnerInterface{
 	 * @inheritdoc
 	 */
 	public function hashEmail(string $email):string{
-		return $this->cryptoInterface->hmac_hash($email, GatewayInterface::HMAC_KEY_EMAIL_BIN);
+		return $this->cryptoInterface->hmac_hash($email, EndpointInterface::HMAC_KEY_EMAIL_BIN);
 	}
 
 	/**
 	 * @inheritdoc
 	 */
 	public function hashPhone(string $phoneNo):string{
-		return $this->cryptoInterface->hmac_hash($phoneNo, GatewayInterface::HMAC_KEY_PHONE_BIN);
+		return $this->cryptoInterface->hmac_hash($phoneNo, EndpointInterface::HMAC_KEY_PHONE_BIN);
 	}
 
 	/**
 	 * @inheritdoc
 	 */
 	public function checkCredits():string{
-		return $this->threemaGateway->checkCredits();
+		return $this->endpointInterface->checkCredits();
 	}
 
 	/**
 	 * @inheritdoc
 	 */
 	public function checkCapabilities(string $threemaID):string{
-		return implode(',', $this->threemaGateway->checkCapabilities($threemaID));
+		return implode(',', $this->endpointInterface->checkCapabilities($threemaID));
 	}
 
 	/**
 	 * @inheritdoc
 	 */
 	public function getIdByEmail(string $email):string{
-		return $this->threemaGateway->getIdByEmailHash($this->hashEmail($email));
+		return $this->endpointInterface->getIdByEmailHash($this->hashEmail($email));
 	}
 
 	/**
 	 * @inheritdoc
 	 */
 	public function getIdByPhone(string $phoneNo):string{
-		return $this->threemaGateway->getIdByPhoneHash($this->hashPhone($phoneNo));
+		return $this->endpointInterface->getIdByPhoneHash($this->hashPhone($phoneNo));
 	}
 
 	/**
 	 * @inheritdoc
 	 */
 	public function getPubkeyById(string $threemaID):string{
-		return $this->threemaGateway->getPublicKey($threemaID);
+		return $this->endpointInterface->getPublicKey($threemaID);
 	}
 
 	/**

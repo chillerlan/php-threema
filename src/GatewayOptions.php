@@ -16,12 +16,7 @@ namespace chillerlan\Threema;
  *
  */
 class GatewayOptions{
-
-	/**
-	 * @var string
-	 */
-	public $gatewayInterface = GatewayEndpoint::class;
-
+	
 	/**
 	 * @var string
 	 */
@@ -36,13 +31,5 @@ class GatewayOptions{
 	 * @var string
 	 */
 	public $storagePath = __DIR__.'/../storage';
-
-	/**
-	 * full path to the CA Root Certificates for use with CURL/SSL
-	 * @link https://curl.haxx.se/ca/cacert.pem
-	 *
-	 * @var string
-	 */
-	public $cacert = __DIR__.'/../storage/cacert.pem';
 
 }

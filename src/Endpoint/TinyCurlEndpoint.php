@@ -1,31 +1,29 @@
 <?php
 /**
- * Class GatewayEndpoint
+ * Class TinyCurlEndpoint
  *
- * @filesource   GatewayEndpoint.php
+ * @filesource   TinyCurlEndpoint.php
  * @created      02.04.2016
- * @package      chillerlan\Threema
+ * @package      chillerlan\Threema\Endpoint
  * @author       Smiley <smiley@chillerlan.net>
  * @copyright    2016 Smiley
  * @license      MIT
  */
 
-namespace chillerlan\Threema;
+namespace chillerlan\Threema\Endpoint;
 
-use chillerlan\Threema\Crypto\CryptoInterface;
-use chillerlan\TinyCurl\{
-	Request, RequestOptions, Response\ResponseInterface, URL
+use chillerlan\Threema\{
+	GatewayException, GatewayOptions
 };
+use chillerlan\TinyCurl\{
+	Request, Response\ResponseInterface, URL
+};
+use Dotenv\Dotenv;
 
 /**
  *
  */
-class GatewayEndpoint implements GatewayInterface{
-
-	/**
-	 * @var \chillerlan\TinyCurl\Request
-	 */
-	protected $request;
+class TinyCurlEndpoint implements EndpointInterface{
 
 	/**
 	 * @var \chillerlan\Threema\GatewayOptions
@@ -33,25 +31,23 @@ class GatewayEndpoint implements GatewayInterface{
 	protected $gatewayOptions;
 
 	/**
-	 * @var \chillerlan\Threema\Crypto\CryptoInterface
+	 * @var \chillerlan\TinyCurl\Request
 	 */
-	protected $cryptoInterface;
+	protected $request;
 
 	/**
-	 * GatewayEndpoint constructor.
+	 * TinyCurlEndpoint constructor.
 	 *
-	 * @param \chillerlan\Threema\Crypto\CryptoInterface $cryptoInterface
-	 * @param \chillerlan\Threema\GatewayOptions         $gatewayOptions
+	 * @param \chillerlan\Threema\GatewayOptions $gatewayOptions
+	 * @param \chillerlan\TinyCurl\Request       $request
 	 *
 	 * @codeCoverageIgnore
 	 */
-	public function __construct(CryptoInterface $cryptoInterface, GatewayOptions $gatewayOptions){
-		$this->cryptoInterface = $cryptoInterface;
-		$this->gatewayOptions  = $gatewayOptions;
+	public function __construct(GatewayOptions $gatewayOptions, Request $request){
+		$this->gatewayOptions = $gatewayOptions;
+		$this->request        = $request;
 
-		$requestOptions          = new RequestOptions;
-		$requestOptions->ca_info = $this->gatewayOptions->cacert;
-		$this->request = new Request($requestOptions);
+		(new Dotenv($gatewayOptions->configPath, $gatewayOptions->configFilename))->load();
 	}
 
 	/**

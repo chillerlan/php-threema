@@ -24,7 +24,7 @@ class GatewayTest extends GatewayTestAbstract{
 	const MESSAGE = 'This is a random test message! ÄÖÜ 茗荷';
 
 	public function testInstance(){
-		$this->assertInstanceOf(Gateway::class, $this->threemaGateway);
+		$this->assertInstanceOf(Gateway::class, $this->gateway);
 	}
 
 	/**
@@ -32,9 +32,9 @@ class GatewayTest extends GatewayTestAbstract{
 	 * @expectedExceptionMessage invalid threema id
 	 */
 	public function testCheckInvalidThreemaIdException(){
-		$this->threemaGateway->checkCapabilities('');
-		$this->threemaGateway->checkCapabilities('#foo4711');
-		$this->threemaGateway->checkCapabilities('ECHOECHOECHOECHO');
+		$this->gateway->checkCapabilities('');
+		$this->gateway->checkCapabilities('#foo4711');
+		$this->gateway->checkCapabilities('ECHOECHOECHOECHO');
 	}
 
 	/**
@@ -42,8 +42,8 @@ class GatewayTest extends GatewayTestAbstract{
 	 * @expectedExceptionMessage invalid phone number
 	 */
 	public function testCheckInvalidPhoneException(){
-		$this->threemaGateway->getIdByPhone('');
-		$this->threemaGateway->getIdByPhone('#foobar');
+		$this->gateway->getIdByPhone('');
+		$this->gateway->getIdByPhone('#foobar');
 	}
 
 	/**
@@ -51,9 +51,9 @@ class GatewayTest extends GatewayTestAbstract{
 	 * @expectedExceptionMessage invalid email
 	 */
 	public function testCheckInvalidEmailException(){
-		$this->threemaGateway->getIdByEmail('');
-		$this->threemaGateway->getIdByEmail('foobar');
-		$this->threemaGateway->getIdByEmail('foo@bar');
+		$this->gateway->getIdByEmail('');
+		$this->gateway->getIdByEmail('foobar');
+		$this->gateway->getIdByEmail('foo@bar');
 	}
 
 	/**
@@ -61,19 +61,9 @@ class GatewayTest extends GatewayTestAbstract{
 	 * @expectedExceptionMessage invalid hash
 	 */
 	public function testCheckInvalidHashException(){
-		$this->threemaGateway->getIdByEmailHash('');
-		$this->threemaGateway->getIdByEmailHash('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz');
-		$this->threemaGateway->getIdByEmailHash('36311e9edca9f61d4c4275ef49b79621e489c442f2d1fc733523463c36c1440');
-	}
-
-	/**
-	 * @expectedException \chillerlan\Threema\GatewayException
-	 * @expectedExceptionMessage "stdClass" does not implement GatewayInterface
-	 */
-	public function testInvalidGatewayInterfaceException(){
-		$gatewayOptions = new GatewayOptions;
-		$gatewayOptions->gatewayInterface = stdClass::class;
-		new Gateway($this->cryptoInterface, $gatewayOptions);
+		$this->gateway->getIdByEmailHash('');
+		$this->gateway->getIdByEmailHash('zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz');
+		$this->gateway->getIdByEmailHash('36311e9edca9f61d4c4275ef49b79621e489c442f2d1fc733523463c36c1440');
 	}
 
 	/**
@@ -82,7 +72,7 @@ class GatewayTest extends GatewayTestAbstract{
 	 */
 	public function testInvalidGatewayMethodException(){
 		/** @noinspection PhpUndefinedMethodInspection */
-		$this->threemaGateway->foobar();
+		$this->gateway->foobar();
 	}
 
 	#######################
@@ -90,14 +80,14 @@ class GatewayTest extends GatewayTestAbstract{
 	#######################
 
 	public function testCryptoVersion(){
-		$this->assertContains('libsodium 1.', $this->threemaGateway->cryptoVersion());
+		$this->assertContains('libsodium 1.', $this->gateway->cryptoVersion());
 	}
 
 	public function testEncryptDecryptRandom(){
-		$sender    = $this->threemaGateway->getKeypair();
-		$recipient = $this->threemaGateway->getKeypair();
-		$encrypted = $this->threemaGateway->encrypt(self::MESSAGE, $sender->privateKey, $recipient->publicKey);
-		$decrypted = $this->threemaGateway->decrypt($encrypted->box, $encrypted->nonce, $recipient->privateKey, $sender->publicKey);
+		$sender    = $this->gateway->getKeypair();
+		$recipient = $this->gateway->getKeypair();
+		$encrypted = $this->gateway->encrypt(self::MESSAGE, $sender->privateKey, $recipient->publicKey);
+		$decrypted = $this->gateway->decrypt($encrypted->box, $encrypted->nonce, $recipient->privateKey, $sender->publicKey);
 
 		$this->assertEquals(self::MESSAGE, $decrypted);
 	}

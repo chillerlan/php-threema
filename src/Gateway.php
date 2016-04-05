@@ -12,14 +12,15 @@
 
 namespace chillerlan\Threema;
 
-use chillerlan\Threema\Crypto\CryptoInterface;
-use Dotenv\Dotenv;
+use chillerlan\Threema\{
+	Crypto\CryptoInterface, Endpoint\EndpointInterface
+};
 use ReflectionClass;
 use ReflectionMethod;
 use stdClass;
 
 /**
- * GatewayInterface methods
+ * EndpointInterface methods
  *
  * @method checkCredits():int
  * @method checkCapabilities(string $threemaID):string
@@ -41,41 +42,31 @@ class Gateway{
 	private $cryptoInterface;
 
 	/**
-	 * @var \chillerlan\Threema\GatewayInterface
+	 * @var \chillerlan\Threema\Endpoint\EndpointInterface
 	 */
-	private $gatewayInterface;
+	private $endpointInterface;
 
 	/**
 	 * @var array[\ReflectionMethod]
 	 */
-	private $gatewayInterfaceMap = [];
+	private $endpointInterfaceMap = [];
 
 	/**
 	 * Gateway constructor.
 	 *
-	 * @param \chillerlan\Threema\Crypto\CryptoInterface $cryptoInterface
-	 * @param \chillerlan\Threema\GatewayOptions         $gatewayOptions
-	 *
-	 * @throws \chillerlan\Threema\GatewayException
+	 * @param \chillerlan\Threema\Endpoint\EndpointInterface $endpointInterface
+	 * @param \chillerlan\Threema\Crypto\CryptoInterface     $cryptoInterface
 	 */
-	public function __construct(CryptoInterface $cryptoInterface, GatewayOptions $gatewayOptions){
-		$this->cryptoInterface = $cryptoInterface;
+	public function __construct(EndpointInterface $endpointInterface, CryptoInterface $cryptoInterface){
+		$this->endpointInterface = $endpointInterface;
+		$this->cryptoInterface   = $cryptoInterface;
 
-		$reflectionClass = new ReflectionClass(GatewayInterface::class);
+		$reflectionClass = new ReflectionClass(EndpointInterface::class);
 
 		foreach($reflectionClass->getMethods() as $method){
-			$this->gatewayInterfaceMap[$method->name] = $method;
+			$this->endpointInterfaceMap[$method->name] = $method;
 		}
 
-		(new Dotenv($gatewayOptions->configPath, $gatewayOptions->configFilename))->load();
-
-		$reflectionClass = new ReflectionClass($gatewayOptions->gatewayInterface);
-
-		if(!$reflectionClass->implementsInterface(GatewayInterface::class)){
-			throw new GatewayException('"'.$gatewayOptions->gatewayInterface.'" does not implement GatewayInterface');
-		}
-
-		$this->gatewayInterface = $reflectionClass->newInstanceArgs([$cryptoInterface, $gatewayOptions]);
 	}
 
 	/**
@@ -87,10 +78,10 @@ class Gateway{
 	 */
 	public function __call(string $method, array $params){
 
-		if(array_key_exists($method, $this->gatewayInterfaceMap)){
-			$reflectionMethod = new ReflectionMethod($this->gatewayInterface, $this->gatewayInterfaceMap[$method]->name);
+		if(array_key_exists($method, $this->endpointInterfaceMap)){
+			$reflectionMethod = new ReflectionMethod($this->endpointInterface, $this->endpointInterfaceMap[$method]->name);
 
-			return $reflectionMethod->invokeArgs($this->gatewayInterface, $params);
+			return $reflectionMethod->invokeArgs($this->endpointInterface, $params);
 		}
 
 		throw new GatewayException('method "'.$method.'" does not exist');
@@ -100,6 +91,9 @@ class Gateway{
 	# convenience methods #
 	#######################
 
+	/**
+	 * @return string
+	 */
 	public function cryptoVersion():string{
 		return $this->cryptoInterface->version();
 	}
