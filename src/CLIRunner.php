@@ -49,7 +49,7 @@ class CLIRunner implements CLIRunnerInterface{
 	protected $cryptoInterface;
 
 	/**
-	 * @var \chillerlan\Threema\Gateway
+	 * @var \chillerlan\Threema\Endpoint\EndpointInterface
 	 */
 	protected $endpointInterface;
 
