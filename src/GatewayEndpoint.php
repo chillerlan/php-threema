@@ -42,6 +42,8 @@ class GatewayEndpoint implements GatewayInterface{
 	 *
 	 * @param \chillerlan\Threema\Crypto\CryptoInterface $cryptoInterface
 	 * @param \chillerlan\Threema\GatewayOptions         $gatewayOptions
+	 *
+	 * @codeCoverageIgnore
 	 */
 	public function __construct(CryptoInterface $cryptoInterface, GatewayOptions $gatewayOptions){
 		$this->cryptoInterface = $cryptoInterface;
@@ -77,11 +79,13 @@ class GatewayEndpoint implements GatewayInterface{
 		if($response->info->http_code === 200){
 			return $response;
 		}
+		// @codeCoverageIgnoreStart
 		elseif(array_key_exists($response->info->http_code, self::API_ERRORS)){
 			throw new GatewayException('gateway error: '.self::API_ERRORS[$response->info->http_code]);
 		}
 
 		throw new GatewayException('unknown error: "compiles on my machine."'); // @codeCoverageIgnore
+		// @codeCoverageIgnoreEnd
 	}
 
 	/**
