@@ -30,20 +30,16 @@ class CLIRunner implements CLIRunnerInterface{
 		'keypair'    => 'getKeypair',
 		'hash_email' => 'hashEmail',
 		'hash_phone' => 'hashPhone',
-#		'encrypt'      => '',
-#		'decrypt'      => '',
+		'encrypt'    => 'encryptFile',
+		'decrypt'    => 'decryptFile',
 		// network
 		'credits'    => 'checkCredits',
 		'check'      => 'checkCapabilities',
 		'email2id'   => 'getIdByEmail',
 		'phone2id'   => 'getIdByPhone',
 		'id2pubkey'  => 'getPubkeyById',
-#		'send'         => '',
-#		'sende2e'      => '',
-#		'sendimage'    => '',
-#		'sendfile'     => '',
-#		'receive'      => '',
-		];
+		'send'       => 'sendMessage',
+	];
 
 	/**
 	 * @var \chillerlan\Threema\Crypto\CryptoInterface
@@ -93,9 +89,8 @@ class CLIRunner implements CLIRunnerInterface{
 	 * @return string
 	 */
 	public function run(array $arguments):string{
-		/** @noinspection PhpUnusedLocalVariableInspection */
-		$scriptName = basename(array_shift($arguments));
-		$command    = strtolower(array_shift($arguments));
+		array_shift($arguments); // shift the scriptname off the top
+		$command = strtolower(array_shift($arguments));
 
 		if(array_key_exists($command, self::COMMANDS) && array_key_exists(self::COMMANDS[$command], $this->CLIRunnerInterfaceMap)){
 			try{
@@ -209,22 +204,28 @@ class CLIRunner implements CLIRunnerInterface{
 	}
 
 	/**
+	 * @param string $path
+	 * @param string $data
+	 *
+	 * @return string
+	 */
+	protected function writeFile(string $path, string $data):string{
+		// @todo: check writable
+		if(is_dir(dirname($path))){
+			$bytes = file_put_contents($path, $data);
+			return $bytes.' bytes written to: '.$path.PHP_EOL;
+		}
+		// or is not writable
+		return $path.' does not exist'; // @codeCoverageIgnore
+	}
+
+	/**
 	 * @inheritdoc
 	 */
 	public function getKeypair(string $privateKeyFile = null, string $publicKeyFile = null):string{
-		$keypair = $this->cryptoInterface->getKeypair();
-		$message = '';
-
-		// @todo: check writable
-		if(!empty($privateKeyFile) && is_dir(dirname($privateKeyFile))){
-			file_put_contents($privateKeyFile, $keypair->privateKey);
-			$message .= 'Private key saved to: '.$privateKeyFile.PHP_EOL;
-		}
-
-		if(!empty($publicKeyFile) && is_dir(dirname($publicKeyFile))){
-			file_put_contents($publicKeyFile, $keypair->publicKey);
-			$message .= 'Public key saved to: '.$publicKeyFile.PHP_EOL;
-		}
+		$keypair  = $this->cryptoInterface->getKeypair();
+		$message  = !empty($privateKeyFile) ? $this->writeFile($privateKeyFile, $keypair->privateKey) : '';
+		$message .= !empty($publicKeyFile)  ? $this->writeFile($publicKeyFile, $keypair->publicKey)   : '';
 
 		return $message.PHP_EOL.'private:'.$keypair->privateKey.PHP_EOL.'public:'.$keypair->publicKey;
 	}
@@ -278,4 +279,26 @@ class CLIRunner implements CLIRunnerInterface{
 		return $this->threemaGateway->getPublicKey($threemaID);
 	}
 
+	/**
+	 * @inheritdoc
+	 */
+	public function encryptFile(string $privateKey, string $publicKey, string $plaintextFile, string $encryptedFile):string{
+		$encrypted = $this->cryptoInterface->encrypt(file_get_contents($plaintextFile), $privateKey, $publicKey);
+		return $this->writeFile($encryptedFile, $encrypted->nonce."\n".$encrypted->box);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function decryptFile(string $privateKey, string $publicKey, string $encryptedFile, string $decryptedFile):string{
+		$data = explode("\n", file_get_contents($encryptedFile));
+		return $this->writeFile($decryptedFile, $this->cryptoInterface->decrypt(trim($data[1]), trim($data[0]), $privateKey, $publicKey));
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public function sendMessage(string $toThreemaID, string $message):string{
+		// TODO: Implement sendMessage() method.
+	}
 }

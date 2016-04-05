@@ -80,4 +80,38 @@ interface CLIRunnerInterface{
 	 * @return string            the public key linked to the given Threema ID
 	 */
 	public function getPubkeyById(string $threemaID):string;
+
+	/**
+	 * Encrypts the given input file using the given sender private key and recipient public key and writes the output to the outputfile.
+	 * 
+	 * @param string $privateKey
+	 * @param string $publicKey
+	 * @param string $plaintextFile
+	 * @param string $encryptedFile
+	 *
+	 * @return string
+	 */
+	public function encryptFile(string $privateKey, string $publicKey, string $plaintextFile, string $encryptedFile):string;
+
+	/**
+	 * Decrypts the given input file using the given recipient private key and sender public key and writes the output to the outputfile.
+	 * 
+	 * @param string $privateKey
+	 * @param string $publicKey
+	 * @param string $encryptedFile
+	 * @param string $decryptedFile
+	 *
+	 * @return string
+	 */
+	public function decryptFile(string $privateKey, string $publicKey, string $encryptedFile, string $decryptedFile):string;
+
+	/**
+	 * Sends a message with server-side encryption to the given ID.
+	 * 
+	 * @param string $toThreemaID
+	 * @param string $message
+	 *
+	 * @return string
+	 */
+	public function sendMessage(string $toThreemaID, string $message):string;
 }
