@@ -12,12 +12,9 @@
 
 namespace chillerlan\Threema;
 
-use chillerlan\Threema\{
-	Crypto\CryptoInterface, Endpoint\EndpointInterface
-};
+use chillerlan\Threema\Endpoint\EndpointInterface;
 use ReflectionClass;
 use ReflectionMethod;
-use stdClass;
 
 /**
  * EndpointInterface methods
@@ -37,36 +34,32 @@ use stdClass;
 class Gateway{
 
 	/**
-	 * @var \chillerlan\Threema\Crypto\CryptoInterface
-	 */
-	private $cryptoInterface;
-
-	/**
 	 * @var \chillerlan\Threema\Endpoint\EndpointInterface
 	 */
-	private $endpointInterface;
+	protected $endpointInterface;
 
 	/**
 	 * @var array[\ReflectionMethod]
 	 */
-	private $endpointInterfaceMap = [];
+	protected $endpointInterfaceMap = [];
 
 	/**
 	 * Gateway constructor.
 	 *
 	 * @param \chillerlan\Threema\Endpoint\EndpointInterface $endpointInterface
-	 * @param \chillerlan\Threema\Crypto\CryptoInterface     $cryptoInterface
 	 */
-	public function __construct(EndpointInterface $endpointInterface, CryptoInterface $cryptoInterface){
+	public function __construct(EndpointInterface $endpointInterface){
 		$this->endpointInterface = $endpointInterface;
-		$this->cryptoInterface   = $cryptoInterface;
+		$this->mapMethods();
+	}
 
-		$reflectionClass = new ReflectionClass(EndpointInterface::class);
-
-		foreach($reflectionClass->getMethods() as $method){
+	/**
+	 * @inheritdoc
+	 */
+	protected function mapMethods(){
+		foreach((new ReflectionClass(EndpointInterface::class))->getMethods() as $method){
 			$this->endpointInterfaceMap[$method->name] = $method;
 		}
-
 	}
 
 	/**
@@ -85,47 +78,6 @@ class Gateway{
 		}
 
 		throw new GatewayException('method "'.$method.'" does not exist');
-	}
-
-	#######################
-	# convenience methods #
-	#######################
-
-	/**
-	 * @return string
-	 */
-	public function cryptoVersion():string{
-		return $this->cryptoInterface->version();
-	}
-
-	/**
-	 * @return \stdClass
-	 */
-	public function getKeypair():stdClass{
-		return $this->cryptoInterface->getKeypair();
-	}
-
-	/**
-	 * @param string $data
-	 * @param string $privateKey hex string
-	 * @param string $publicKey hex string
-	 *
-	 * @return \stdClass
-	 */
-	public function encrypt(string $data, string $privateKey, string $publicKey):stdClass{
-		return $this->cryptoInterface->encrypt($data, $privateKey, $publicKey);
-	}
-
-	/**
-	 * @param string $box hex string
-	 * @param string $nonce hex string
-	 * @param string $privateKey hex string
-	 * @param string $publicKey hex string
-	 *
-	 * @return string
-	 */
-	public function decrypt(string $box, string $nonce, string $privateKey, string $publicKey):string{
-		return $this->cryptoInterface->decrypt($box, $nonce, $privateKey, $publicKey);
 	}
 
 }

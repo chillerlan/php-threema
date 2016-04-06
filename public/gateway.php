@@ -21,19 +21,18 @@ $gatewayOptions->configFilename = '.threema'; // @todo TRAVIS REMINDER!
 $gatewayOptions->configPath     = __DIR__.'/../config';
 $gatewayOptions->storagePath    = __DIR__.'/../storage';
 
-$requestOptions          = new RequestOptions;
-$requestOptions->ca_info = __DIR__.'/../storage/cacert.pem'; // https://curl.haxx.se/ca/cacert.pem
+$requestOptions                 = new RequestOptions;
+$requestOptions->ca_info        = __DIR__.'/../storage/cacert.pem'; // https://curl.haxx.se/ca/cacert.pem
 
-$gateway = new Gateway(new TinyCurlEndpoint($gatewayOptions, new Request($requestOptions)), new CryptoSodium);
-
-$response = [];
-
-$form = $_GET['form'] ?? false;
+$gateway         = new Gateway(new TinyCurlEndpoint($gatewayOptions, new Request($requestOptions)));
+$cryptoInterface = new CryptoSodium;
+$form            = $_GET['form'] ?? false;
+$response        = [];
 
 if($form && in_array($form, ['encrypt'], true)){
 	switch($form){
 		case 'encrypt':
-			$response['encrypt'] = $gateway->encrypt($_GET['message'], $_GET['private'], $_GET['public']);
+			$response['encrypt'] = $cryptoInterface->encrypt($_GET['message'], $_GET['private'], $_GET['public']);
 			break;
 	}
 }

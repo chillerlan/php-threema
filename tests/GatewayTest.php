@@ -28,7 +28,7 @@ class GatewayTest extends GatewayTestAbstract{
 	}
 
 	/**
-	 * @expectedException \chillerlan\Threema\GatewayException
+	 * @expectedException \chillerlan\Threema\Endpoint\EndpointException
 	 * @expectedExceptionMessage invalid threema id
 	 */
 	public function testCheckInvalidThreemaIdException(){
@@ -38,7 +38,7 @@ class GatewayTest extends GatewayTestAbstract{
 	}
 
 	/**
-	 * @expectedException \chillerlan\Threema\GatewayException
+	 * @expectedException \chillerlan\Threema\Endpoint\EndpointException
 	 * @expectedExceptionMessage invalid phone number
 	 */
 	public function testCheckInvalidPhoneException(){
@@ -47,7 +47,7 @@ class GatewayTest extends GatewayTestAbstract{
 	}
 
 	/**
-	 * @expectedException \chillerlan\Threema\GatewayException
+	 * @expectedException \chillerlan\Threema\Endpoint\EndpointException
 	 * @expectedExceptionMessage invalid email
 	 */
 	public function testCheckInvalidEmailException(){
@@ -57,7 +57,7 @@ class GatewayTest extends GatewayTestAbstract{
 	}
 
 	/**
-	 * @expectedException \chillerlan\Threema\GatewayException
+	 * @expectedException \chillerlan\Threema\Endpoint\EndpointException
 	 * @expectedExceptionMessage invalid hash
 	 */
 	public function testCheckInvalidHashException(){
@@ -73,23 +73,6 @@ class GatewayTest extends GatewayTestAbstract{
 	public function testInvalidGatewayMethodException(){
 		/** @noinspection PhpUndefinedMethodInspection */
 		$this->gateway->foobar();
-	}
-
-	#######################
-	# convenience methods #
-	#######################
-
-	public function testCryptoVersion(){
-		$this->assertContains('libsodium 1.', $this->gateway->cryptoVersion());
-	}
-
-	public function testEncryptDecryptRandom(){
-		$sender    = $this->gateway->getKeypair();
-		$recipient = $this->gateway->getKeypair();
-		$encrypted = $this->gateway->encrypt(self::MESSAGE, $sender->privateKey, $recipient->publicKey);
-		$decrypted = $this->gateway->decrypt($encrypted->box, $encrypted->nonce, $recipient->privateKey, $sender->publicKey);
-
-		$this->assertEquals(self::MESSAGE, $decrypted);
 	}
 
 }

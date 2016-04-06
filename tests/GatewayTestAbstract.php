@@ -52,7 +52,7 @@ abstract class GatewayTestAbstract extends \PHPUnit_Framework_TestCase{
 
 		$endpoint              = new TinyCurlEndpoint($this->gatewayOptions, $http);
 		$this->cryptoInterface = new CryptoSodium;
-		$this->gateway         = new Gateway($endpoint, $this->cryptoInterface);
+		$this->gateway         = new Gateway($endpoint);
 		$this->CLIrunner       = new CLIRunner($endpoint, $this->cryptoInterface);
 	}
 

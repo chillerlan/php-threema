@@ -28,7 +28,7 @@ abstract class CryptoTestAbstract extends \PHPUnit_Framework_TestCase{
 	 * @var \chillerlan\Threema\Crypto\CryptoInterface
 	 */
 	protected $cryptoInterface;
-	
+
 	abstract public function testVersion();
 
 	public function testGetKeypair(){
@@ -69,6 +69,15 @@ abstract class CryptoTestAbstract extends \PHPUnit_Framework_TestCase{
 		$this->cryptoInterface->encrypt(self::MESSAGE, '', '');
 		$this->cryptoInterface->encrypt(self::MESSAGE, '', self::RECIPIENT_PUBLIC);
 		$this->cryptoInterface->encrypt(self::MESSAGE, self::SENDER_PRIVATE, '');
+	}
+
+	public function testEncryptDecryptRandom(){
+		$sender    = $this->cryptoInterface->getKeypair();
+		$recipient = $this->cryptoInterface->getKeypair();
+		$encrypted = $this->cryptoInterface->encrypt(self::MESSAGE, $sender->privateKey, $recipient->publicKey);
+		$decrypted = $this->cryptoInterface->decrypt($encrypted->box, $encrypted->nonce, $recipient->privateKey, $sender->publicKey);
+
+		$this->assertEquals(self::MESSAGE, $decrypted);
 	}
 
 }

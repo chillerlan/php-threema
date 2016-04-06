@@ -12,28 +12,20 @@
 
 namespace chillerlan\Threema\Endpoint;
 
-use chillerlan\Threema\{
-	GatewayException, GatewayOptions
-};
+use chillerlan\Threema\GatewayOptions;
 use chillerlan\TinyCurl\{
 	Request, Response\ResponseInterface, URL
 };
-use Dotenv\Dotenv;
 
 /**
  *
  */
-class TinyCurlEndpoint implements EndpointInterface{
-
-	/**
-	 * @var \chillerlan\Threema\GatewayOptions
-	 */
-	protected $gatewayOptions;
+class TinyCurlEndpoint extends EndpointAbstract{
 
 	/**
 	 * @var \chillerlan\TinyCurl\Request
 	 */
-	protected $request;
+	private $request;
 
 	/**
 	 * TinyCurlEndpoint constructor.
@@ -42,10 +34,9 @@ class TinyCurlEndpoint implements EndpointInterface{
 	 * @param \chillerlan\TinyCurl\Request       $request
 	 */
 	public function __construct(GatewayOptions $gatewayOptions, Request $request){
-		$this->gatewayOptions = $gatewayOptions;
-		$this->request        = $request;
+		parent::__construct($gatewayOptions);
 
-		(new Dotenv($gatewayOptions->configPath, $gatewayOptions->configFilename))->load();
+		$this->request = $request;
 	}
 
 	/**
@@ -54,10 +45,9 @@ class TinyCurlEndpoint implements EndpointInterface{
 	 * @param array  $body
 	 *
 	 * @return \chillerlan\TinyCurl\Response\ResponseInterface
-	 * @throws \chillerlan\Threema\GatewayException
-	 * @throws \chillerlan\TinyCurl\RequestException
+	 * @throws \chillerlan\Threema\Endpoint\EndpointException
 	 */
-	protected function getResponse(string $endpoint, array $params = [], array $body = []):ResponseInterface{
+	private function getResponse(string $endpoint, array $params = [], array $body = []):ResponseInterface{
 		$endpoint = self::API_BASE.$endpoint;
 		$params   = array_merge($params, [
 			'from'   => getenv('THREEMA_GATEWAY_ID'),
@@ -75,10 +65,10 @@ class TinyCurlEndpoint implements EndpointInterface{
 		}
 		// @codeCoverageIgnoreStart
 		elseif(array_key_exists($response->info->http_code, self::API_ERRORS)){
-			throw new GatewayException('gateway error: '.self::API_ERRORS[$response->info->http_code]);
+			throw new EndpointException('gateway error: '.self::API_ERRORS[$response->info->http_code]);
 		}
 
-		throw new GatewayException('unknown error: "compiles on my machine."');
+		throw new EndpointException('unknown error: "compiles on my machine."');
 		// @codeCoverageIgnoreEnd
 	}
 
@@ -162,68 +152,6 @@ class TinyCurlEndpoint implements EndpointInterface{
 	 */
 	public function download(string $blobID){
 		// TODO: Implement download() method.
-	}
-
-	/**
-	 * @param string $threemaID
-	 *
-	 * @return string
-	 * @throws \chillerlan\Threema\GatewayException
-	 */
-	protected function checkThreemaID(string $threemaID):string{
-
-		if(preg_match('/^[a-z\d\*]{8}$/i', $threemaID)){
-			return strtoupper($threemaID);
-		}
-
-		throw new GatewayException('invalid threema id');
-	}
-
-	/**
-	 * @param string $phoneNo
-	 *
-	 * @return string
-	 * @throws \chillerlan\Threema\GatewayException
-	 */
-	protected function checkPhoneNo(string $phoneNo):string{
-		$phoneNo = preg_replace('/[^\d]/', '', $phoneNo);
-
-		if(empty($phoneNo)){
-			throw new GatewayException('invalid phone number');
-		}
-
-		return (string)$phoneNo;
-	}
-
-	/**
-	 * @param $email
-	 *
-	 * @return string
-	 * @throws \chillerlan\Threema\GatewayException
-	 */
-	protected function checkEmail($email):string{
-		$email = filter_var(trim($email), FILTER_VALIDATE_EMAIL);
-
-		if(empty($email)){
-			throw new GatewayException('invalid email');
-		}
-
-		return strtolower($email);
-	}
-
-	/**
-	 * @param string $hash
-	 *
-	 * @return string
-	 * @throws \chillerlan\Threema\GatewayException
-	 */
-	protected function checkHash(string $hash):string{
-
-		if(preg_match('/^[a-f\d]{64}$/i', $hash)){
-			return $hash;
-		}
-
-		throw new GatewayException('invalid hash');
 	}
 
 }

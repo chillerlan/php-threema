@@ -13,7 +13,7 @@
 namespace chillerlan\Threema;
 
 use chillerlan\Threema\{
-	Crypto\CryptoInterface, Endpoint\EndpointInterface
+	Crypto\CryptoInterface, Endpoint\EndpointException, Endpoint\EndpointInterface
 };
 use ReflectionClass;
 use ReflectionMethod;
@@ -61,10 +61,10 @@ class CLIRunner implements CLIRunnerInterface{
 	/**
 	 * @var array[\ReflectionMethod]
 	 */
-	private $CLIRunnerInterfaceMap;
+	protected $CLIRunnerInterfaceMap;
 
 	/**
-	 * CLIRunner constructor.
+	 * Gateway constructor.
 	 *
 	 * @param \chillerlan\Threema\Endpoint\EndpointInterface $endpointInterface
 	 * @param \chillerlan\Threema\Crypto\CryptoInterface     $cryptoInterface
@@ -72,7 +72,14 @@ class CLIRunner implements CLIRunnerInterface{
 	public function __construct(EndpointInterface $endpointInterface, CryptoInterface $cryptoInterface){
 		$this->endpointInterface = $endpointInterface;
 		$this->cryptoInterface   = $cryptoInterface;
-		$this->reflection        = new ReflectionClass(CLIRunnerInterface::class);
+		$this->mapMethods();
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	protected function mapMethods(){
+		$this->reflection = new ReflectionClass(CLIRunnerInterface::class);
 
 		foreach($this->reflection->getMethods() as $method){
 			$this->CLIRunnerInterfaceMap[$method->name] = $method;
@@ -96,7 +103,7 @@ class CLIRunner implements CLIRunnerInterface{
 				// @todo: check method arguments
 				return $this->log2cli($method->invokeArgs($this, $arguments));
 			}
-			catch(GatewayException $gatewayException){
+			catch(EndpointException $gatewayException){
 				return $this->log2cli('ERROR: '.$gatewayException->getMessage());
 			}
 		}
@@ -111,15 +118,16 @@ class CLIRunner implements CLIRunnerInterface{
 	 *
 	 * @return string
 	 */
-	protected function log2cli(string $string):string{
+	private function log2cli(string $string):string{
 		return PHP_EOL.wordwrap($string, 78, PHP_EOL).PHP_EOL;
 	}
 
-	/**
+	/** @noinspection PhpUnusedPrivateMethodInspection
+	 *
 	 * @return string
 	 * @codeCoverageIgnore
 	 */
-	protected function readStdIn(){
+	private function readStdIn(){
 		$stdin = fopen('php://stdin', 'r');
 		$lines = [];
 
@@ -140,7 +148,7 @@ class CLIRunner implements CLIRunnerInterface{
 	 *
 	 * @return \stdClass
 	 */
-	protected function parseDocBlock(array $params):stdClass{
+	private function parseDocBlock(array $params):stdClass{
 		$parsed             = new stdClass;
 		$parsed->paramNames = [];
 		$parsed->paramDoc   = [];
@@ -153,17 +161,7 @@ class CLIRunner implements CLIRunnerInterface{
 		foreach($params as $p){
 			$p = explode(' ', $p, 2);
 			if(isset($p[1])){
-				if($p[0] === 'param'){
-					$p                    = (explode(' ', trim($p[1]), 3));
-					$name                 = '<'.trim($p[1], ' $').'>';
-					$parsed->paramNames[] = $name;
-					$doc                  = isset($p[2]) ? $name.' '.trim($p[2]) : $name;
-					$parsed->paramDoc[]   = $doc;
-				}
-				else if($p[0] === 'return'){
-					$p = explode(' ', trim($p[1]), 2);
-					$parsed->returnDoc .= isset($p[1]) ? trim($p[1]) : '';
-				}
+				$this->parseDocTag($p, $parsed);
 			}
 		}
 
@@ -171,6 +169,25 @@ class CLIRunner implements CLIRunnerInterface{
 		$parsed->paramDoc   = implode(PHP_EOL, $parsed->paramDoc);
 
 		return $parsed;
+	}
+
+	/**
+	 * @param array      $tag
+	 * @param \stdClass &$out
+	 */
+	private function parseDocTag(array $tag, stdClass &$out){
+		switch($tag[0]){
+			case 'param':
+				$tag               = (explode(' ', trim($tag[1]), 3));
+				$name              = '<'.trim($tag[1], ' $').'>';
+				$out->paramNames[] = $name;
+				$out->paramDoc[]   = isset($tag[2]) ? $name.' '.trim($tag[2]) : $name;
+				break;
+			case 'return':
+				$tag = explode(' ', trim($tag[1]), 2);
+				$out->returnDoc .= isset($tag[1]) ? trim($tag[1]) : '';
+				break;
+		}
 	}
 
 	/**
