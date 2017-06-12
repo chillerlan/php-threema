@@ -13,15 +13,13 @@
 		}
 	],
 	"require": {
-		"php": ">=7.0.3",
-		"ext-libsodium": ">=1.0.2",
+		"php": ">=7.0.7",
 		"chillerlan/php-curl": "dev-master",
-		"vlucas/phpdotenv": "2.2.*"
+		"vlucas/phpdotenv": "2.*"
 	},
 	"require-dev": {
 		"chillerlan/php-qrcode": "dev-master",
-		"phpunit/phpunit": "5.2.*",
-		"phpdocumentor/phpdocumentor": "2.8.*"
+		"phpunit/phpunit": "6.2.*"
 	},
 	"autoload": {
 		"psr-4": {
@@ -31,8 +29,7 @@
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"chillerlan\\ThreemaTest\\": "tests/",
-			"Example\\": "examples/"
+			"chillerlan\\ThreemaTest\\": "tests/"
 		}
 	}
 }

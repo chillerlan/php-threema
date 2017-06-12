@@ -1,5 +1,6 @@
 <?php
 /**
+ * Class CryptoSodiumTest
  *
  * @filesource   CryptoSodiumTest.php
  * @created      03.04.2016
@@ -13,14 +14,9 @@ namespace chillerlan\ThreemaTest\Crypto;
 
 use chillerlan\Threema\Crypto\CryptoSodium;
 
-/**
- * Class CryptoSodiumTest
- */
 class CryptoSodiumTest extends CryptoTestAbstract{
 
-	protected function setUp(){
-		$this->cryptoInterface = new CryptoSodium;
-	}
+	protected $cryptoInterfaceClass = CryptoSodium::class;
 
 	public function testVersion(){
 		$this->assertContains('libsodium 1.', $this->cryptoInterface->version());

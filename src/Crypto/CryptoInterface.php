@@ -12,18 +12,13 @@
 
 namespace chillerlan\Threema\Crypto;
 
-use stdClass;
-
-/**
- * 
- */
 interface CryptoInterface{
 
 	/**
 	 * @return string
 	 */
 	public function version():string;
-	
+
 	/**
 	 * @param string $bin binary
 	 *
@@ -59,18 +54,18 @@ interface CryptoInterface{
 	public function hmac_hash(string $str, string $hmacKey):string;
 
 	/**
-	 * @return \stdClass
+	 * @return array
 	 */
-	public function getKeypair():stdClass;
+	public function getKeypair():array;
 
 	/**
-	 * @param string $data
-	 * @param string $privateKey hex string
-	 * @param string $publicKey  hex string
+	 * @param string      $data
+	 * @param string      $privateKey hex string
+	 * @param string      $publicKey  hex string
 	 *
-	 * @return \stdClass
+	 * @return array
 	 */
-	public function encrypt(string $data, string $privateKey, string $publicKey):stdClass;
+	public function createBox(string $data, string $privateKey, string $publicKey):array;
 
 	/**
 	 * @param string $box hex string
@@ -80,7 +75,24 @@ interface CryptoInterface{
 	 *
 	 * @return string
 	 */
-	public function decrypt(string $box, string $nonce, string $privateKey, string $publicKey):string;
+	public function openBox(string $box, string $nonce, string $privateKey, string $publicKey):string;
 
+	/**
+	 * @param string $data
+	 * @param string $nonce
+	 * @param string $key
+	 *
+	 * @return string
+	 */
+	public function createSecretBox(string $data, string $nonce, string $key):string;
+
+	/**
+	 * @param string $box
+	 * @param string $nonce
+	 * @param string $key
+	 *
+	 * @return string
+	 */
+	public function openSecretBox(string $box, string $nonce, string $key):string;
 
 }

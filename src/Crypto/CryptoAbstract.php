@@ -12,9 +12,6 @@
 
 namespace chillerlan\Threema\Crypto;
 
-/**
- * 
- */
 abstract class CryptoAbstract implements CryptoInterface{
 
 	/**
@@ -50,7 +47,7 @@ abstract class CryptoAbstract implements CryptoInterface{
 	 */
 	public function getPadBytes():string {
 		$padbytes = 0;
-		
+
 		while($padbytes < 1 || $padbytes > 255){
 			$padbytes = ord($this->getRandomBytes(1));
 		}

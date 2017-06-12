@@ -12,9 +12,4 @@
 
 namespace chillerlan\Threema\Crypto;
 
-/**
- * Placeholder
- */
-class CryptoException extends \Exception{
-
-}
+class CryptoException extends \Exception{}

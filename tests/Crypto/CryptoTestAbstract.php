@@ -1,5 +1,6 @@
 <?php
 /**
+ * Class CryptoTestAbstract
  *
  * @filesource   CryptoTestAbstract.php
  * @created      03.04.2016
@@ -11,10 +12,9 @@
 
 namespace chillerlan\ThreemaTest\Crypto;
 
-/**
- * Class CryptoTestAbstract
- */
-abstract class CryptoTestAbstract extends \PHPUnit_Framework_TestCase{
+use chillerlan\ThreemaTest\ThreemaTestAbstract;
+
+abstract class CryptoTestAbstract extends ThreemaTestAbstract{
 
 	const SENDER_PRIVATE    = 'c9e46cbbdf2394b0f402b5293c3b7a19948dca215a00600ed448e826b00c9f29';
 	const SENDER_PUBLIC     = 'ec17dd2053eff97fefbaf3ecf905958e49e06341b44ac9252ae95e9a476eb773';
@@ -28,6 +28,11 @@ abstract class CryptoTestAbstract extends \PHPUnit_Framework_TestCase{
 	 * @var \chillerlan\Threema\Crypto\CryptoInterface
 	 */
 	protected $cryptoInterface;
+	protected $cryptoInterfaceClass;
+
+	protected function setUp(){
+		$this->cryptoInterface = new $this->cryptoInterfaceClass;
+	}
 
 	abstract public function testVersion();
 
@@ -35,19 +40,19 @@ abstract class CryptoTestAbstract extends \PHPUnit_Framework_TestCase{
 		$keypair    = $this->cryptoInterface->getKeypair();
 		$patternHex = '/^[a-f\d]{64}$/i';
 
-		$this->assertRegExp($patternHex, $keypair->privateKey);
-		$this->assertRegExp($patternHex, $keypair->publicKey);
+		$this->assertRegExp($patternHex, $keypair['private']);
+		$this->assertRegExp($patternHex, $keypair['public']);
 	}
 
-	public function testEncrypt(){
-		$encrypted = $this->cryptoInterface->encrypt(self::MESSAGE, self::SENDER_PRIVATE, self::RECIPIENT_PUBLIC);
+	public function testCreateBox(){
+		$encrypted = $this->cryptoInterface->createBox(self::MESSAGE, self::SENDER_PRIVATE, self::RECIPIENT_PUBLIC);
 
-		$this->assertRegExp('/^[a-f\d]{48}$/i', $encrypted->nonce);
-		$this->assertRegExp('/^[a-f\d]+$/i', $encrypted->box);
+		$this->assertRegExp('/^[a-f\d]{48}$/i', $encrypted['nonce']);
+		$this->assertRegExp('/^[a-f\d]+$/i', $encrypted['box']);
 	}
 
-	public function testDecrypt(){
-		$decrypted = $this->cryptoInterface->decrypt(self::BOX, self::NONCE, self::RECIPIENT_PRIVATE, self::SENDER_PUBLIC);
+	public function testOpenBox(){
+		$decrypted = $this->cryptoInterface->openBox(self::BOX, self::NONCE, self::RECIPIENT_PRIVATE, self::SENDER_PUBLIC);
 
 		$this->assertEquals(self::MESSAGE, $decrypted);
 	}
@@ -56,26 +61,36 @@ abstract class CryptoTestAbstract extends \PHPUnit_Framework_TestCase{
 	 * @expectedException \chillerlan\Threema\Crypto\CryptoException
 	 * @expectedExceptionMessage invalid data
 	 */
-	public function testEncryptInvalidDataException(){
-		$this->cryptoInterface->encrypt('', self::SENDER_PRIVATE, self::RECIPIENT_PUBLIC);
-		$this->cryptoInterface->encrypt('', '', '');
+	public function testCreateBoxInvalidData(){
+		$this->cryptoInterface->createBox('', self::SENDER_PRIVATE, self::RECIPIENT_PUBLIC);
+		$this->cryptoInterface->createBox('', '', '');
 	}
 
 	/**
 	 * @expectedException \chillerlan\Threema\Crypto\CryptoException
 	 * @expectedExceptionMessage invalid keypair
 	 */
-	public function testEncryptInvalidKeypairException(){
-		$this->cryptoInterface->encrypt(self::MESSAGE, '', '');
-		$this->cryptoInterface->encrypt(self::MESSAGE, '', self::RECIPIENT_PUBLIC);
-		$this->cryptoInterface->encrypt(self::MESSAGE, self::SENDER_PRIVATE, '');
+	public function testCreateBoxInvalidKeypairException(){
+		$this->cryptoInterface->createBox(self::MESSAGE, '', '');
+		$this->cryptoInterface->createBox(self::MESSAGE, '', self::RECIPIENT_PUBLIC);
+		$this->cryptoInterface->createBox(self::MESSAGE, self::SENDER_PRIVATE, '');
 	}
 
-	public function testEncryptDecryptRandom(){
+	public function testCreateOpenBoxRandom(){
 		$sender    = $this->cryptoInterface->getKeypair();
 		$recipient = $this->cryptoInterface->getKeypair();
-		$encrypted = $this->cryptoInterface->encrypt(self::MESSAGE, $sender->privateKey, $recipient->publicKey);
-		$decrypted = $this->cryptoInterface->decrypt($encrypted->box, $encrypted->nonce, $recipient->privateKey, $sender->publicKey);
+		$encrypted = $this->cryptoInterface->createBox(self::MESSAGE, $sender['private'], $recipient['public']);
+		$decrypted = $this->cryptoInterface->openBox($encrypted['box'], $encrypted['nonce'], $recipient['private'], $sender['public']);
+
+		$this->assertEquals(self::MESSAGE, $decrypted);
+	}
+
+	public function testCreateOpenSecretBox(){
+		$key   = $this->cryptoInterface->getRandomBytes(32);
+		$nonce = $this->cryptoInterface->getRandomBytes(24);
+
+		$encrypted = $this->cryptoInterface->createSecretBox(self::MESSAGE, $nonce, $key);
+		$decrypted = $this->cryptoInterface->openSecretBox($encrypted, $nonce, $key);
 
 		$this->assertEquals(self::MESSAGE, $decrypted);
 	}
