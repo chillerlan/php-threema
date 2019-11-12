@@ -2,6 +2,8 @@
 /**
  * Class Gateway
  *
+ * @link https://gateway.threema.ch/en/developer/api
+ *
  * @filesource   Gateway.php
  * @created      10.06.2017
  * @package      chillerlan\Threema
@@ -12,14 +14,20 @@
 
 namespace chillerlan\Threema;
 
-use chillerlan\Threema\Crypto\CryptoInterface;
-use chillerlan\Threema\HTTP\HTTPClientInterface;
+use chillerlan\HTTP\Psr17\RequestFactory;
+use chillerlan\HTTP\Psr7\MultipartStream;
+use chillerlan\Settings\SettingsContainerInterface;
+use finfo;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestInterface;
+
+use function chillerlan\HTTP\Psr7\merge_query;
 
 class Gateway{
 
-	const API_BASE = 'https://msgapi.threema.ch';
+	protected const API_BASE = 'https://msgapi.threema.ch';
 
-	const API_ERRORS = [
+	protected const API_ERRORS = [
 		400 => 'bad request',
 		401 => 'unauthorized',
 		402 => 'no credits remain',
@@ -28,80 +36,112 @@ class Gateway{
 		500 => 'internal server error',
 	];
 
-	const HMAC_KEY_EMAIL_BIN = "\x30\xa5\x50\x0f\xed\x97\x01\xfa\x6d\xef\xdb\x61\x08\x41\x90\x0f\xeb\xb8\xe4\x30\x88\x1f\x7a\xd8\x16\x82\x62\x64\xec\x09\xba\xd7";
-	const HMAC_KEY_PHONE_BIN = "\x85\xad\xf8\x22\x69\x53\xf3\xd9\x6c\xfd\x5d\x09\xbf\x29\x55\x5e\xb9\x55\xfc\xd8\xaa\x5e\xc4\xf9\xfc\xd8\x69\xe2\x58\x37\x07\x23";
+	protected const HMAC_KEY_EMAIL_BIN = "\x30\xa5\x50\x0f\xed\x97\x01\xfa\x6d\xef\xdb\x61\x08\x41\x90\x0f\xeb\xb8\xe4\x30\x88\x1f\x7a\xd8\x16\x82\x62\x64\xec\x09\xba\xd7";
+	protected const HMAC_KEY_PHONE_BIN = "\x85\xad\xf8\x22\x69\x53\xf3\xd9\x6c\xfd\x5d\x09\xbf\x29\x55\x5e\xb9\x55\xfc\xd8\xaa\x5e\xc4\xf9\xfc\xd8\x69\xe2\x58\x37\x07\x23";
 
-	const FILE_NONCE           = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01";
-	const FILE_THUMBNAIL_NONCE = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02";
-
-	/**
-	 * @var \chillerlan\Threema\HTTP\HTTPClientInterface
-	 */
-	protected $HTTP;
+	protected const FILE_NONCE           = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01";
+	protected const FILE_THUMBNAIL_NONCE = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02";
 
 	/**
-	 * @var \chillerlan\Threema\Crypto\CryptoInterface
+	 * @var \chillerlan\Threema\GatewayOptions
 	 */
-	protected $crypto;
+	protected $options;
 
 	/**
-	 * @var string
+	 * @var \Psr\Http\Client\ClientInterface
 	 */
-	protected $gatewayID;
+	protected $http;
 
 	/**
-	 * @var string
+	 * @var \Psr\Http\Message\RequestFactoryInterface
 	 */
-	protected $gatewaySecret;
+	protected $requestFactory;
 
 	/**
 	 * Gateway constructor.
 	 *
-	 * @param \chillerlan\Threema\HTTP\HTTPClientInterface $HTTP
-	 * @param \chillerlan\Threema\Crypto\CryptoInterface   $crypto
-	 * @param string                                       $gatewayID
-	 * @param string                                       $gatewaySecret
+	 * @param \chillerlan\Settings\SettingsContainerInterface $options
+	 * @param \Psr\Http\Client\ClientInterface                $http
 	 */
-	public function __construct(HTTPClientInterface $HTTP, CryptoInterface $crypto, string $gatewayID, string $gatewaySecret){
-		$this->HTTP          = $HTTP;
-		$this->crypto        = $crypto;
-		$this->gatewayID     = $gatewayID;
-		$this->gatewaySecret = $gatewaySecret;
+	public function __construct(SettingsContainerInterface $options, ClientInterface $http){
+		$this->options        = $options;
+		$this->http           = $http;
+		$this->requestFactory = new RequestFactory;
 	}
+
+	/**
+	 * @inheritdoc
+	 */
+	protected function getPadBytes():string{
+		$padbytes = 0;
+
+		while($padbytes < 1 || $padbytes > 255){
+			$padbytes = ord(random_bytes(1));
+		}
+
+		return str_repeat(chr($padbytes), $padbytes);
+	}
+
+	/**
+	 * @param string $data
+	 * @param string $privateKey
+	 * @param string $publicKey
+	 *
+	 * @return array
+	 * @throws \chillerlan\Threema\GatewayException
+	 */
+	protected function createBox(string $data, string $privateKey, string $publicKey):array{
+
+		if(empty($data)){
+			throw new GatewayException('invalid data');
+		}
+
+		if(!preg_match('/^[a-f\d]{128}$/i', $privateKey.$publicKey)){
+			throw new GatewayException('invalid keypair');
+		}
+
+		$keypair = sodium_crypto_box_keypair_from_secretkey_and_publickey(sodium_hex2bin($privateKey), sodium_hex2bin($publicKey));
+
+		$nonce = random_bytes(SODIUM_CRYPTO_BOX_NONCEBYTES);
+		$box   = sodium_crypto_box($data, $nonce, $keypair);
+
+		$encrypted = ['box' => sodium_bin2hex($box), 'nonce' => sodium_bin2hex($nonce)];
+
+		return $encrypted;
+	}
+
 
 	/**
 	 * @return array
 	 */
 	protected function getAuthParams():array {
 		return [
-			'from'   => $this->gatewayID,
-			'secret' => $this->gatewaySecret,
+			'from'   => $this->options->gatewayID,
+			'secret' => $this->options->gatewaySecret,
 		];
 	}
 
 	/**
-	 * @param       $endpoint
-	 * @param array $params
-	 * @param null  $body
-	 * @param array $headers
+	 * @param \Psr\Http\Message\RequestInterface $request
 	 *
-	 * @return mixed
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @return string
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
-	protected function getResponse($endpoint, $params = [], $body = null, $headers = []){
-		$response = $this->HTTP->getResponse(self::API_BASE.$endpoint, $params, !is_null($body) ? 'POST' : 'GET', $body, $headers);
+	protected function getResponse(RequestInterface $request):string{
+		$response = $this->http->sendRequest($request);
+		$status   = $response->getStatusCode();
 
-		if($response->code !== 200){
-
-			if(array_key_exists($response->code, self::API_ERRORS)){
-				throw new EndpointException('gateway error: '.self::API_ERRORS[$response->code].' '.print_r($response->body, true));
-			}
-
-			throw new EndpointException('unknown error: "compiles on my machine." '.print_r([$response->code, $response->body], true));
+		if($status === 200){
+			return $response->getBody()->getContents();
 		}
 
-		return $response->body;
+		if(array_key_exists($status, $this::API_ERRORS)){
+			throw new GatewayException('gateway error: '.$this::API_ERRORS[$status]);
+		}
+
+		throw new GatewayException('unknown error: "compiles on my machine."'); // @codeCoverageIgnore
 	}
+
 
 	/**
 	 * Get remaining credits
@@ -121,7 +161,10 @@ class Gateway{
 	 * @return int
 	 */
 	public function checkCredits():int{
-		return (int)$this->getResponse('/credits', $this->getAuthParams());
+		$url     = $this::API_BASE.'/credits';
+		$request = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+
+		return (int)$this->getResponse($request);
 	}
 
 	/**
@@ -160,7 +203,9 @@ class Gateway{
 	 * @return array
 	 */
 	public function checkCapabilities(string $threemaID):array{
-		$response = explode(',', $this->getResponse('/capabilities/'.$this->checkThreemaID($threemaID), $this->getAuthParams()));
+		$url      = $this::API_BASE.'/capabilities/'.$this->checkThreemaID($threemaID);
+		$request  = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+		$response = explode(',', $this->getResponse($request));
 
 		sort($response);
 
@@ -188,7 +233,10 @@ class Gateway{
 	 * @return string
 	 */
 	public function getIdByPhone(string $phoneno):string{
-		return $this->getResponse('/lookup/phone/'.$this->checkPhoneNo($phoneno), $this->getAuthParams());
+		$url     = $this::API_BASE.'/lookup/phone/'.$this->checkPhoneNo($phoneno);
+		$request = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+
+		return $this->getResponse($request);
 	}
 
 	/**
@@ -216,7 +264,10 @@ class Gateway{
 	 * @return string
 	 */
 	public function getIdByPhoneHash(string $phonenoHash):string{
-		return $this->getResponse('/lookup/phone_hash/'.$this->checkHash($phonenoHash), $this->getAuthParams());
+		$url     = $this::API_BASE.'/lookup/phone_hash/'.$this->checkHash($phonenoHash);
+		$request = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+
+		return $this->getResponse($request);
 	}
 
 	/**
@@ -238,7 +289,10 @@ class Gateway{
 	 * @return string
 	 */
 	public function getIdByEmail(string $email):string{
-		return $this->getResponse('/lookup/email/'.$this->checkEmail($email), $this->getAuthParams());
+		$url     = $this::API_BASE.'/lookup/email/'.$this->checkEmail($email);
+		$request = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+
+		return $this->getResponse($request);
 	}
 
 	/**
@@ -268,7 +322,10 @@ class Gateway{
 	 * @return string
 	 */
 	public function getIdByEmailHash(string $emailHash):string{
-		return $this->getResponse('/lookup/email_hash/'.$this->checkHash($emailHash), $this->getAuthParams());
+		$url     = $this::API_BASE.'/lookup/email_hash/'.$this->checkHash($emailHash);
+		$request = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+
+		return $this->getResponse($request);
 	}
 
 	/**
@@ -319,19 +376,21 @@ class Gateway{
 	 * @param string $threemaID
 	 *
 	 * @return string
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
 	public function getPublicKey(string $threemaID):string{
 		$threemaID = $this->checkThreemaID($threemaID);
 
 		if(!$threemaID){
-			throw new EndpointException('invalid threema id');
+			throw new GatewayException('invalid threema id');
 		}
 
-		$response = $this->getResponse('/pubkeys/'.$threemaID, $this->getAuthParams());
+		$url      = $this::API_BASE.'/pubkeys/'.$threemaID;
+		$request  = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+		$response = $this->getResponse($request);
 
 		if(!$response || !$this->checkHash($response)){
-			throw new EndpointException('invalid public key');
+			throw new GatewayException('invalid public key');
 		}
 
 		return $response;
@@ -372,7 +431,7 @@ class Gateway{
 	 * @param string $message
 	 *
 	 * @return string
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @throws \chillerlan\Threema\GatewayException
 	 *
 	 */
 /*
@@ -390,7 +449,7 @@ class Gateway{
 	 * @param string $to
 	 *
 	 * @return array
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
 	protected function getRecipient(string $to):array {
 
@@ -402,7 +461,7 @@ class Gateway{
 			case $x = $this->checkPhoneNo($to):
 				return ['phone' => $x];
 			default:
-				throw new EndpointException('"to" not specified: '.$to);
+				throw new GatewayException('"to" not specified: '.$to);
 		}
 
 	}
@@ -439,13 +498,13 @@ class Gateway{
 	 *
 	 *
 	 * @return string
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
 	protected function sendE2E(string $recipientThreemaID, string $senderPrivateKey, string $data):string{
 		$recipientThreemaID = $this->checkThreemaID($recipientThreemaID);
 
 		if(!$recipientThreemaID){
-			throw new EndpointException('no threema id given');
+			throw new GatewayException('no threema id given');
 		}
 
 		$recipientPubKey = $this->getPublicKey($recipientThreemaID);
@@ -453,12 +512,14 @@ class Gateway{
 		$params = array_merge(
 			$this->getAuthParams(),
 			['to' => $recipientThreemaID],
-			$this->crypto->createBox($data.$this->crypto->getPadBytes(), $senderPrivateKey, $recipientPubKey)
+			$this->createBox($data.$this->getPadBytes(), $senderPrivateKey, $recipientPubKey)
 		);
 
 		ksort($params);
 
-		return $this->getResponse('/send_e2e', [], $params);
+		$request = $this->requestFactory->createRequest('POST', merge_query($this::API_BASE.'/send_e2e', $params));
+
+		return $this->getResponse($request);
 	}
 
 	/**
@@ -475,33 +536,28 @@ class Gateway{
 	/**
 	 * @param string      $recipientThreemaID
 	 * @param string      $senderPrivateKey
-	 * @param string      $file
-	 * @param string      $description
-	 * @param string|null $thumbnail
+	 * @param string      $file      (binary content)
+	 * @param string|null $filename
+	 * @param string|null $description
+	 * @param string|null $thumbnail (binary content)
 	 *
 	 * @return string
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
-	public function sendE2EFile(string $recipientThreemaID, string $senderPrivateKey, string $file, string $description = '', string $thumbnail = null):string{
+	public function sendE2EFile(string $recipientThreemaID, string $senderPrivateKey, string $file, string $filename = null, string $description = null, string $thumbnail = null):string{
 
 		if(!in_array('file', $this->checkCapabilities($recipientThreemaID))){
-			throw new EndpointException('given threema id is not capable of receiving files');
+			throw new GatewayException('given threema id is not capable of receiving files');
 		}
 
-		$fileinfo = $this->checkFile($file);
-
-		if(!is_array($fileinfo)){
-			throw new EndpointException('invalid file');
-		}
-
-		$key = $this->crypto->getRandomBytes(32);
+		$key = random_bytes(SODIUM_CRYPTO_SECRETBOX_KEYBYTES);
 
 		$content = [
-			'b' => $this->upload($this->crypto->createSecretBox(file_get_contents($file), self::FILE_NONCE, $key)),
-			'k' => $this->crypto->bin2hex($key),
-			'm' => $fileinfo['mime'],
-			'n' => $fileinfo['name'],
-			's' => $fileinfo['size'],
+			'b' => $this->upload(sodium_crypto_secretbox($file, $this::FILE_NONCE, $key)),
+			'k' => sodium_bin2hex($key),
+			'm' => (new finfo(FILEINFO_MIME_TYPE))->buffer($file),
+			'n' => $filename ?? '',
+			's' => strlen($file),
 			'i' => 0,
 		];
 
@@ -511,12 +567,7 @@ class Gateway{
 
 		if($thumbnail){
 			// @todo: autocreate thumbnail
-			$thumbinfo = $this->checkFile($thumbnail);
-
-			if(is_array($thumbinfo)){
-				$content['t'] = $this->upload($this->crypto->createSecretBox(file_get_contents($thumbnail), self::FILE_THUMBNAIL_NONCE, $key));
-			}
-
+			$content['t'] = $this->upload(sodium_crypto_secretbox($thumbnail, $this::FILE_THUMBNAIL_NONCE, $key));
 		}
 
 		return $this->sendE2E($recipientThreemaID, $senderPrivateKey, "\x17".json_encode($content));
@@ -525,43 +576,33 @@ class Gateway{
 	/**
 	 * @param string $recipientThreemaID
 	 * @param string $senderPrivateKey
-	 * @param string $image
+	 * @param string $image (binary content)
 	 *
-	 * @return mixed
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @return string
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
-/*
-	public function sendE2EImage(string $recipientThreemaID, string $senderPrivateKey, string $image){
+	public function sendE2EImage(string $recipientThreemaID, string $senderPrivateKey, string $image):string{
 
 		if(!in_array('image', $this->checkCapabilities($recipientThreemaID))){
-			throw new EndpointException('given threema id is not capable of receiving image');
+			throw new GatewayException('given threema id is not capable of receiving image');
 		}
 
-		$fileinfo = $this->checkFile($image);
-
-		if(!is_array($fileinfo) || !in_array($fileinfo['mime'], ['image/jpg', 'image/jpeg', 'image/png'])){
-			throw new EndpointException('invalid image');
+		if(!in_array((new finfo(FILEINFO_MIME_TYPE))->buffer($image), ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'])){
+			throw new GatewayException('invalid image');
 		}
 
 		$recipientPubKey = $this->getPublicKey($recipientThreemaID);
 
-		$box = $this->crypto->createBox(file_get_contents($image), $senderPrivateKey, $recipientPubKey);
+		$blob    = $this->createBox($image, $senderPrivateKey, $recipientPubKey);
+		$blob_id = $this->upload(sodium_hex2bin($blob['box']));
 
-		$message = "\x02".$this->crypto->hex2bin($this->upload($box['box']));
-		$message .= pack('V', $fileinfo['size']);
-		$message .= $this->crypto->hex2bin($box['nonce']);
+		$message = sodium_hex2bin($blob_id);
+		$message .= pack('V', strlen($image));
+		$message .= sodium_hex2bin($blob['nonce']);
 
-		$params = array_merge(
-			$this->getAuthParams(),
-			['to' => $recipientThreemaID],
-			$this->crypto->createBox($message.$this->crypto->getPadBytes(), $senderPrivateKey, $recipientPubKey)
-		);
-
-		ksort($params);
-
-		return $this->getResponse('/send_e2e', [], $params);
+		return $this->sendE2E($recipientThreemaID, $senderPrivateKey, "\x02".$message);
 	}
-*/
+
 
 	/**
 	 * Upload
@@ -596,7 +637,18 @@ class Gateway{
 	 * @return string
 	 */
 	protected function upload(string $blob):string{
-		return $this->getResponse('/upload_blob', $this->getAuthParams(), ['blob' => $blob], ['Content-type' => 'multipart/form-data']);
+		$url     = $this::API_BASE.'/upload_blob';
+		$request = $this->requestFactory->createRequest('POST', merge_query($url, $this->getAuthParams()));
+
+		$body = new MultipartStream([['name' => 'blob', 'contents' => $blob]]);
+
+		$request = $request
+			->withBody($body)
+			->withHeader('Content-Type', 'multipart/form-data; boundary='.$body->getBoundary())
+			->withHeader('Content-Disposition', 'form-data; name="blob"');
+		;
+
+		return $this->getResponse($request);
 	}
 
 	/**
@@ -621,8 +673,11 @@ class Gateway{
 	 *
 	 * @return mixed
 	 */
-	public function download(string $blobID){
-		return $this->getResponse('/blobs/'.$blobID, $this->getAuthParams());
+	public function download(string $blobID):string{
+		$url     = $this::API_BASE.'/blobs/'.$blobID;
+		$request = $this->requestFactory->createRequest('GET', merge_query($url, $this->getAuthParams()));
+
+		return $this->getResponse($request);
 	}
 
 	/**
@@ -631,16 +686,16 @@ class Gateway{
 	 * @param string $email the email address
 	 *
 	 * @return string the email hash (hex)
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
-	public function hashEmail($email){
+	public function hashEmail($email):string{
 		$email = $this->checkEmail($email);
 
 		if(!$email){
-			throw new EndpointException('invalid email');
+			throw new GatewayException('invalid email');
 		}
 
-		return $this->crypto->hmac_hash($email, self::HMAC_KEY_EMAIL_BIN);
+		return hash_hmac('sha256', $email, $this::HMAC_KEY_EMAIL_BIN);
 	}
 
 	/**
@@ -649,16 +704,16 @@ class Gateway{
 	 * @param string $phoneNo the phone number (in E.164 format, no leading +)
 	 *
 	 * @return bool|string the phone number hash (hex), false on failure
-	 * @throws \chillerlan\Threema\EndpointException
+	 * @throws \chillerlan\Threema\GatewayException
 	 */
 	public function hashPhoneNo($phoneNo){
 		$phoneNo = $this->checkPhoneNo($phoneNo);
 
 		if(!$phoneNo){
-			throw new EndpointException('invalid phonenumber');
+			throw new GatewayException('invalid phonenumber');
 		}
 
-		return $this->crypto->hmac_hash($phoneNo, self::HMAC_KEY_PHONE_BIN);
+		return hash_hmac('sha256', $phoneNo, $this::HMAC_KEY_PHONE_BIN);
 	}
 
 	/**
@@ -666,9 +721,10 @@ class Gateway{
 	 *
 	 * @return null|string
 	 */
-	protected function checkThreemaID(string $threemaID){
+	protected function checkThreemaID(string $threemaID):?string{
 		$threemaID = trim($threemaID);
 
+		/** @noinspection RegExpRedundantEscape */
 		if(!preg_match('/^[a-z\d\*]{8}$/i', $threemaID)){
 			return null;
 		}
@@ -681,7 +737,7 @@ class Gateway{
 	 *
 	 * @return null|string
 	 */
-	protected function checkPhoneNo(string $phoneNo){
+	protected function checkPhoneNo(string $phoneNo):?string{
 		$phoneNo = trim($phoneNo);
 
 		if(!preg_match('/^[\d]+$/', $phoneNo)){
@@ -696,7 +752,7 @@ class Gateway{
 	 *
 	 * @return null|string
 	 */
-	protected function checkEmail($email){
+	protected function checkEmail($email):?string{
 		$email = filter_var(trim($email), FILTER_VALIDATE_EMAIL);
 
 		if(empty($email)){
@@ -711,7 +767,7 @@ class Gateway{
 	 *
 	 * @return null|string
 	 */
-	protected function checkHash(string $hash){
+	protected function checkHash(string $hash):?string{
 		$hash = trim($hash);
 
 		if(!preg_match('/^[a-f\d]{64}$/i', $hash)){
@@ -726,21 +782,10 @@ class Gateway{
 	 *
 	 * @return array|null
 	 */
-	protected function checkFile(string $path){
+	protected function checkFile(string $path):?array{
 
-		if(!file_exists($path) || !is_file($path)){
-			return null;
-		}
+		$mime = (new finfo(FILEINFO_MIME_TYPE ))->buffer($path);
 
-		$mime = 'application/octet-stream';
-
-		if(class_exists('finfo')){
-			$mime = (new \finfo(FILEINFO_MIME_TYPE ))->file($path);
-		}
-		else if(function_exists('mime_content_type')) {
-			$mime = mime_content_type($path);
-		}
-
-		return ['path' => $path, 'name' => basename($path), 'size' => filesize($path), 'mime' => $mime];
+		return ['size' => strlen($path), 'mime' => $mime];
 	}
 }

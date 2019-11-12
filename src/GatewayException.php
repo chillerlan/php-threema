@@ -1,8 +1,8 @@
 <?php
 /**
- * Class EndpointException
+ * Class GatewayException
  *
- * @filesource   EndpointException.php
+ * @filesource   GatewayException.php
  * @created      06.04.2016
  * @package      chillerlan\Threema\Gateway
  * @author       Smiley <smiley@chillerlan.net>
@@ -12,4 +12,4 @@
 
 namespace chillerlan\Threema;
 
-class EndpointException extends \Exception{}
+class GatewayException extends \Exception{}

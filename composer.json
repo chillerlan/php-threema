@@ -12,14 +12,23 @@
 			"homepage": "http://smiley.codes"
 		}
 	],
+	"minimum-stability": "stable",
 	"require": {
-		"php": ">=7.0.7",
-		"chillerlan/php-curl": "dev-master",
-		"vlucas/phpdotenv": "2.*"
+		"php": "^7.2",
+		"ext-fileinfo": "*",
+		"ext-json": "*",
+		"ext-sodium": "*",
+		"psr/http-client":"^1.0",
+		"psr/http-factory":"^1.0",
+		"psr/log": "^1.1",
+		"chillerlan/php-httpinterface": "^4.0",
+		"chillerlan/php-settings-container": "^1.2",
+		"chillerlan/php-dotenv": "^1.0"
 	},
 	"require-dev": {
-		"chillerlan/php-qrcode": "dev-master",
-		"phpunit/phpunit": "6.2.*"
+		"chillerlan/php-cryptobox": "^1.0",
+		"chillerlan/php-qrcode": "^3.1",
+		"phpunit/phpunit": "^8.4"
 	},
 	"autoload": {
 		"psr-4": {

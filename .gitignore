@@ -3,3 +3,4 @@ config/.env
 vendor
 composer.lock
 .idea
+*.phpunit.result.cache

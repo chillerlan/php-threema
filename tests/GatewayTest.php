@@ -12,13 +12,16 @@
 
 namespace chillerlan\ThreemaTest;
 
-use chillerlan\Threema\Crypto\CryptoSodium;
+use chillerlan\DotEnv\DotEnv;
+use chillerlan\HTTP\Psr18\CurlClient;
+use chillerlan\HTTP\Psr18\LoggingClient;
 use chillerlan\Threema\Gateway;
-use chillerlan\Threema\HTTP\TinyCurlClient;
-use chillerlan\TinyCurl\Request;
-use chillerlan\TinyCurl\RequestOptions;
+use chillerlan\Threema\GatewayOptions;
+use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientInterface;
+use Psr\Log\AbstractLogger;
 
-class GatewayTest extends ThreemaTestAbstract{
+class GatewayTest extends TestCase{
 
 	/**
 	 * @var \chillerlan\Threema\Gateway
@@ -26,62 +29,107 @@ class GatewayTest extends ThreemaTestAbstract{
 	protected $gateway;
 
 	/**
-	 * @var \chillerlan\Threema\HTTP\HTTPClientInterface
+	 * @var \chillerlan\DotEnv\DotEnv
 	 */
-	protected $http;
+	protected $env;
 
 	/**
-	 * @var \chillerlan\Threema\Crypto\CryptoInterface
+	 * @var \Psr\Log\LoggerInterface
 	 */
-	protected $crypto;
+	protected $logger;
 
-	protected function setUp(){
-		$this->markTestSkipped();
+	/**
+	 * @var \chillerlan\Threema\GatewayOptions
+	 */
+	protected $options;
 
-		parent::setUp();
+	protected function setUp():void{
+		$this->env = (new DotEnv(__DIR__.'/../config', '.env', false))->load();
 
-		$requestOptions = new RequestOptions;
+		$requestOptions = new GatewayOptions;
 		$requestOptions->ca_info = __DIR__.'/../storage/cacert.pem'; // https://curl.haxx.se/ca/cacert.pem
+		$options = [
+			'gatewayID'     => $this->env->get('THREEMA_GATEWAY_ID'),
+			'gatewaySecret' => $this->env->get('THREEMA_GATEWAY_SECRET'),
+			// HTTPOptionsTrait
+			'ca_info'       => __DIR__.'/../storage/cacert.pem',
+			'userAgent'     => 'chillerlanPhpThreema/1.0-dev +https://github.com/chillerlan/php-threema',
+		];
 
-		$this->http = new TinyCurlClient(new Request($requestOptions));
-		$this->crypto = new CryptoSodium;
-		$this->gateway = new Gateway($this->http, $this->crypto, getenv('THREEMA_GATEWAY_ID'), getenv('THREEMA_GATEWAY_SECRET'));
+		$this->options = new GatewayOptions($options);
+		$this->gateway = new Gateway($this->options, $this->initHttp());
 	}
 
+	protected function initHttp():ClientInterface{
+
+		$logger = new class() extends AbstractLogger{
+			public function log($level, $message, array $context = []){
+				echo sprintf('[%s][%s] %s', date('Y-m-d H:i:s'), $level, trim($message))."\n";
+			}
+		};
+
+		$http = new CurlClient($this->options);
+
+		return new LoggingClient($http, $logger);
+	}
 
 	public function testCheckCredits(){
 		$this->assertTrue($this->gateway->checkCredits() > 0);
 	}
 
 	public function testCheckCapabilities(){
-		$this->assertEquals(['audio', 'file', 'image', 'text', 'video'], $this->gateway->checkCapabilities(getenv('THREEMA_TEST_ID')));
+		$this->assertEquals(['audio', 'file', 'image', 'text', 'video'], $this->gateway->checkCapabilities($this->env->THREEMA_TEST_SEND_ID));
 	}
 
 	public function testGetPublicKey(){
-		$this->assertSame(getenv('THREEMA_TEST_PUBLIC_KEY'), $this->gateway->getPublicKey(getenv('THREEMA_TEST_ID')));
+		$this->assertSame($this->env->THREEMA_TEST_PUBLIC_KEY, $this->gateway->getPublicKey($this->env->THREEMA_TEST_SEND_ID));
 	}
 
 	public function testGetIdByPhone(){
-		$this->assertSame(getenv('THREEMA_TEST_ID'), $this->gateway->getIdByPhone(getenv('THREEMA_TEST_PHONE')));
+		$this->assertSame($this->env->THREEMA_TEST_ID, $this->gateway->getIdByPhone($this->env->THREEMA_TEST_PHONE));
 	}
 
 	public function testGetIdByPhoneHash(){
-		$this->assertSame(getenv('THREEMA_TEST_ID'), $this->gateway->getIdByPhoneHash($this->gateway->hashPhoneNo(getenv('THREEMA_TEST_PHONE'))));
+		$this->assertSame($this->env->THREEMA_TEST_ID, $this->gateway->getIdByPhoneHash($this->gateway->hashPhoneNo($this->env->THREEMA_TEST_PHONE)));
 	}
 
 	public function testGetIdByEmail(){
-		$this->assertSame(getenv('THREEMA_TEST_ID'), $this->gateway->getIdByEmail(getenv('THREEMA_TEST_EMAIL')));
+		$this->assertSame($this->env->THREEMA_TEST_ID, $this->gateway->getIdByEmail($this->env->THREEMA_TEST_EMAIL));
 	}
 
 	public function testGetIdByEmailHash(){
-		$this->assertSame(getenv('THREEMA_TEST_ID'), $this->gateway->getIdByEmailHash($this->gateway->hashEmail(getenv('THREEMA_TEST_EMAIL'))));
+		$this->assertSame($this->env->THREEMA_TEST_ID, $this->gateway->getIdByEmailHash($this->gateway->hashEmail($this->env->THREEMA_TEST_EMAIL)));
 	}
 
 	public function testSendE2EText(){
-		$this->assertRegExp('/^[a-f\d]{16}$/', $this->gateway->sendE2EText(getenv('THREEMA_TEST_ID'), getenv('THREEMA_GATEWAY_PRIVATE_KEY'), 'this is a random test message!'));
+		$r = $this->gateway->sendE2EText(
+			$this->env->THREEMA_TEST_SEND_ID,
+			$this->env->THREEMA_GATEWAY_PRIVATE_KEY,
+			'this is a random test message!'
+		);
+
+		$this->assertRegExp('/^[a-f\d]{16}$/', $r);
 	}
 
 	public function testSendE2EFile(){
-		$this->assertRegExp('/^[a-f\d]{16}$/', $this->gateway->sendE2EFile(getenv('THREEMA_TEST_ID'), getenv('THREEMA_GATEWAY_PRIVATE_KEY'),__DIR__.'/../storage/threema.jpg', 'threema',__DIR__.'/../storage/threema.jpg'));
+		$r = $this->gateway->sendE2EFile(
+			$this->env->THREEMA_TEST_SEND_ID,
+			$this->env->THREEMA_GATEWAY_PRIVATE_KEY,
+			file_get_contents(__DIR__.'/../storage/threema.jpg'),
+			'threema',
+			file_get_contents(__DIR__.'/../storage/threema.jpg')
+		);
+
+		$this->assertRegExp('/^[a-f\d]{16}$/', $r);
+	}
+
+	public function testSendE2EImage(){
+		$r = $this->gateway->sendE2EImage(
+			$this->env->THREEMA_TEST_SEND_ID,
+			$this->env->THREEMA_GATEWAY_PRIVATE_KEY,
+			file_get_contents(__DIR__.'/../storage/threema.jpg')
+		);
+
+		$this->assertRegExp('/^[a-f\d]{16}$/', $r);
 	}
 }
